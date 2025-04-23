@@ -9,8 +9,8 @@ import (
 )
 
 // DownloadNvdFeed 下載指定年份的 NVD JSON.gz 並解壓為原始 JSON bytes
-func DownloadNvdFeed(year int) ([]byte, error) {
-	url := fmt.Sprintf("https://nvd.nist.gov/feeds/json/cve/1.1/nvdcve-1.1-%d.json.gz", year)
+func DownloadNvdv1Feed(year int, url string) ([]byte, error) {
+	url = fmt.Sprintf("%s/nvdcve-1.1-%d.json.gz", url, year)
 
 	resp, err := http.Get(url)
 	if err != nil {

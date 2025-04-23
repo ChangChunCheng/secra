@@ -3,7 +3,6 @@ package importcmd
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"log"
 	"time"
 
@@ -19,9 +18,6 @@ import (
 	"gitlab.com/jacky850509/secra/internal/storage"
 )
 
-var year int
-var sourceName string
-
 var nvdCmd = &cobra.Command{
 	Use:   "nvd",
 	Short: "Import CVEs from NVD feed",
@@ -30,13 +26,13 @@ var nvdCmd = &cobra.Command{
 		db := storage.NewDB(cfg.PostgresDSN, false)
 		defer db.Close()
 
-		log.Printf("📥 Downloading NVD feed for year %d...", year)
-		data, err := fetcher.DownloadNvdFeed(year)
+		log.Printf("📥 Downloading NVD, url=%s,  feed for year %d...", cfg.NvdURLv1, year)
+		data, err := fetcher.DownloadNvdv1Feed(year, cfg.NvdURLv1)
 		if err != nil {
 			log.Fatalf("❌ Failed to fetch feed: %v", err)
 		}
 
-		var feed parser.NvdCveFeed
+		var feed parser.Nvdv1CveFeed
 		if err := json.Unmarshal(data, &feed); err != nil {
 			log.Fatalf("❌ Failed to parse feed JSON: %v", err)
 		}
@@ -49,7 +45,7 @@ var nvdCmd = &cobra.Command{
 		}
 
 		// Step 2: 確保來源
-		source, err := ensureCveSource(db.DB, sourceName, fmt.Sprintf("NVD Feed %d", year))
+		source, err := ensureCveSource(db.DB, sourceName, cfg.NvdURLv1, "")
 		if err != nil {
 			log.Fatalf("❌ Failed to ensure source: %v", err)
 		}
@@ -117,27 +113,35 @@ var nvdCmd = &cobra.Command{
 	},
 }
 
-func ensureCveSource(db *bun.DB, name string, description string) (*model.CVESource, error) {
+func ensureCveSource(db *bun.DB, name, description, urlStr string) (*model.CVESource, error) {
 	ctx := context.Background()
 
 	var src model.CVESource
 	err := db.NewSelect().Model(&src).Where("name = ?", name).Scan(ctx)
 	if err == nil {
-		return &src, nil
+		return &src, nil // 已存在，直接回傳
 	}
 
-	url := fmt.Sprintf("https://nvd.nist.gov/vuln/search/results?query=%s", name)
-	src = model.CVESource{
-		ID:        uuid.NewString(),
-		Name:      name,
-		Type:      "nvd",
-		URL:       &url,
-		Enabled:   true,
-		CreatedAt: time.Now(),
+	// 只在來源尚未存在時，才使用提供的 description 和 url
+	var urlPtr string
+	if urlStr != "" {
+		urlPtr = urlStr
 	}
+
+	src = model.CVESource{
+		ID:          uuid.NewString(),
+		Name:        name,
+		Type:        "nvd",
+		URL:         urlPtr,
+		Description: description,
+		Enabled:     true,
+		CreatedAt:   time.Now(),
+	}
+
 	_, err = db.NewInsert().Model(&src).Exec(ctx)
 	if err != nil {
 		return nil, err
 	}
+
 	return &src, nil
 }

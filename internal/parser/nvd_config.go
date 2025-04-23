@@ -14,7 +14,7 @@ type CVEProductRelation struct {
 }
 
 // 解析 vendor/product 關聯
-func ExtractVendorsAndProducts(feed *NvdCveFeed) ([]model.Vendor, []model.Product, []CVEProductRelation) {
+func ExtractVendorsAndProducts(feed *Nvdv1CveFeed) ([]model.Vendor, []model.Product, []CVEProductRelation) {
 	vendorSet := map[string]string{}  // name → uuid
 	productSet := map[string]string{} // vendor:product → uuid
 	var relations []CVEProductRelation

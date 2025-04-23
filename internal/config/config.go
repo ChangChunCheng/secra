@@ -11,7 +11,7 @@ type AppConfig struct {
 	GRPCPort    string
 	HTTPPort    string
 	PostgresDSN string
-	// 可擴展更多欄位，如：JWTSecret、RedisAddr 等
+	NvdURLv1    string
 }
 
 func Load() *AppConfig {
@@ -20,6 +20,7 @@ func Load() *AppConfig {
 		GRPCPort:    getenv("GRPC_PORT", ":50051"),
 		HTTPPort:    getenv("HTTP_PORT", ":8080"),
 		PostgresDSN: getenv("POSTGRES_DSN", "postgres://postgres:password@localhost:5432/secra?sslmode=disable"),
+		NvdURLv1:    getenv("NVD_URL_V1", "https://nvd.nist.gov/feeds/json/cve/1.1/"),
 	}
 }
 

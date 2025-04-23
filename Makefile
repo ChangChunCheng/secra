@@ -107,5 +107,8 @@ migrate:
 migrate-status:
 	go run cmd/cli/main.go migrate status
 
+YEAR ?= 2025
+SOURCE ?= nvd-cve
+
 import-nvd:
-	go run cmd/cli/main.go import nvd --year=2025 --source=nvd-cve
+	go run cmd/cli/main.go import nvd --year=$(YEAR) --source=$(SOURCE)

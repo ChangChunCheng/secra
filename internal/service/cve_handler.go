@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"gitlab.com/jacky850509/secra/api/gen/v1"
+	secra_v1 "gitlab.com/jacky850509/secra/api/gen/v1"
 	"gitlab.com/jacky850509/secra/internal/model"
 	"gitlab.com/jacky850509/secra/internal/repo"
 	"google.golang.org/protobuf/types/known/emptypb"
@@ -16,7 +16,7 @@ func (s *SecraHandler) CreateCVESource(ctx context.Context, req *secra_v1.Create
 		ID:      req.Source.Id,
 		Name:    req.Source.Name,
 		Type:    req.Source.Type,
-		URL:     &req.Source.Url,
+		URL:     req.Source.Url,
 		Enabled: req.Source.Enabled,
 	}
 	if err := r.Create(ctx, m); err != nil {
@@ -35,7 +35,7 @@ func (s *SecraHandler) GetCVESource(ctx context.Context, req *secra_v1.GetCVESou
 		Id:        m.ID,
 		Name:      m.Name,
 		Type:      m.Type,
-		Url:       derefString(m.URL),
+		Url:       derefString(&m.URL),
 		Enabled:   m.Enabled,
 		CreatedAt: m.CreatedAt.Format(time.RFC3339),
 	}, nil
@@ -47,7 +47,7 @@ func (s *SecraHandler) UpdateCVESource(ctx context.Context, req *secra_v1.Update
 		ID:      req.Source.Id,
 		Name:    req.Source.Name,
 		Type:    req.Source.Type,
-		URL:     &req.Source.Url,
+		URL:     req.Source.Url,
 		Enabled: req.Source.Enabled,
 	}
 	if err := r.Update(ctx, m); err != nil {
@@ -68,7 +68,7 @@ func (s *SecraHandler) ListCVESource(ctx context.Context, req *secra_v1.ListCVES
 			Id:        v.ID,
 			Name:      v.Name,
 			Type:      v.Type,
-			Url:       derefString(v.URL),
+			Url:       derefString(&v.URL),
 			Enabled:   v.Enabled,
 			CreatedAt: v.CreatedAt.Format(time.RFC3339),
 		})

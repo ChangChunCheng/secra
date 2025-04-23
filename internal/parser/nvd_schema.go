@@ -29,18 +29,18 @@ func (nt *NvdTime) UnmarshalJSON(data []byte) error {
 }
 
 // 根目錄結構
-type NvdCveFeed struct {
-	CVEDataType    string    `json:"CVE_data_type"`
-	CVEDataFormat  string    `json:"CVE_data_format"`
-	CVEDataVersion string    `json:"CVE_data_version"`
-	NumberOfCVEs   string    `json:"CVE_data_numberOfCVEs"`
-	Timestamp      string    `json:"CVE_data_timestamp"`
-	Items          []CveItem `json:"CVE_Items"`
+type Nvdv1CveFeed struct {
+	CVEDataType    string         `json:"CVE_data_type"`
+	CVEDataFormat  string         `json:"CVE_data_format"`
+	CVEDataVersion string         `json:"CVE_data_version"`
+	NumberOfCVEs   string         `json:"CVE_data_numberOfCVEs"`
+	Timestamp      string         `json:"CVE_data_timestamp"`
+	Items          []Nvdv1CveItem `json:"CVE_Items"`
 }
 
 // 每筆 CVE 條目
-type CveItem struct {
-	CVE              CveCore        `json:"cve"`
+type Nvdv1CveItem struct {
+	CVE              Nvdv1CveCore   `json:"cve"`
 	PublishedDate    NvdTime        `json:"publishedDate"`
 	LastModifiedDate NvdTime        `json:"lastModifiedDate"`
 	Impact           *CveImpact     `json:"impact,omitempty"`
@@ -48,17 +48,17 @@ type CveItem struct {
 }
 
 // 核心內容
-type CveCore struct {
-	DataMeta    CveMeta        `json:"CVE_data_meta"`
-	Description CveDescription `json:"description"`
+type Nvdv1CveCore struct {
+	DataMeta    Nvdv1CveMeta        `json:"CVE_data_meta"`
+	Description Nvdv1CveDescription `json:"description"`
 	// 可擴充 vendor、references、problemtype
 }
 
-type CveMeta struct {
+type Nvdv1CveMeta struct {
 	ID string `json:"ID"`
 }
 
-type CveDescription struct {
+type Nvdv1CveDescription struct {
 	DescriptionData []LangValue `json:"description_data"`
 }
 

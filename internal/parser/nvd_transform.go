@@ -8,7 +8,7 @@ import (
 )
 
 // ConvertToCVEs 轉換解析後的 feed → DB-ready CVE 結構
-func ConvertToCVEs(feed *NvdCveFeed) ([]model.CVE, error) {
+func ConvertToCVEs(feed *Nvdv1CveFeed) ([]model.CVE, error) {
 	var results []model.CVE
 
 	for _, item := range feed.Items {
@@ -65,7 +65,7 @@ func shortTitle(full string) string {
 }
 
 // 擷取英文描述
-func extractEnglishDescription(desc CveDescription) string {
+func extractEnglishDescription(desc Nvdv1CveDescription) string {
 	for _, d := range desc.DescriptionData {
 		if d.Lang == "en" {
 			return d.Value
