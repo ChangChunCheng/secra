@@ -1,0 +1,60 @@
+# Go build artifacts
+/bin/
+/build/
+/dist/
+*.exe
+*.test
+*.out
+
+# Dependency directories
+/vendor/
+
+# Go module cache
+/go.sum
+
+# IDE/editor settings
+*.swp
+*.swo
+*.swn
+*.bak
+*.tmp
+*.DS_Store
+
+# JetBrains IDE
+.idea/
+
+# VSCode
+.vscode/
+
+# Logs
+*.log
+logs/
+*.gz
+
+# System files
+Thumbs.db
+.DS_Store
+
+# Environment configuration
+.env
+.env.*
+
+# Compiled proto files
+api/gen/**/*.pb.go
+
+# Database
+data/
+*.sqlite
+*.db
+
+# Migration files that shouldn't be versioned (optional)
+migrations/*.lock
+
+# Coverage
+coverage.out
+
+# Test output
+*.test
+
+# Cache
+.cache/
