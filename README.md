@@ -15,7 +15,7 @@ Secra 是一個模組化的 CVE 漏洞資料平台，支援多來源同步、自
 ```{bash}
 git clone git@gitlab.com:jacky850509/secra.git
 cd secra
-go run cmd/cli/main.go
+go run cmd/cli/secra.go
 ```
 
 ---
@@ -26,7 +26,7 @@ go run cmd/cli/main.go
 secra/
 ├── cmd/
 │   ├── cli/         # CLI command 定義
-│   │   ├── main.go
+│   │   ├── secra.go
 │   │   └── root/
 │   │       └── root.go
 │   └── cron/        # 未來排程用 CLI 入口

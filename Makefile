@@ -102,13 +102,12 @@ lint:
 # ============================================================================
 
 migrate:
-	go run cmd/cli/main.go migrate up
+	go run cmd/cli/secra.go migrate up
 
 migrate-status:
-	go run cmd/cli/main.go migrate status
+	go run cmd/cli/secra.go migrate status
 
 YEAR ?= 2025
-SOURCE ?= nvd-cve
 
-import-nvd:
-	go run cmd/cli/main.go import nvd --year=$(YEAR) --source=$(SOURCE)
+import-nvd-v1:
+	go run cmd/cli/secra.go import nvd v1 --recent=true --modified=true --year=$(YEAR)
