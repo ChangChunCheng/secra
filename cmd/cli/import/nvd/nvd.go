@@ -15,13 +15,15 @@ import (
 	"gitlab.com/jacky850509/secra/internal/fetcher"
 	"gitlab.com/jacky850509/secra/internal/importer"
 	"gitlab.com/jacky850509/secra/internal/model"
-	"gitlab.com/jacky850509/secra/internal/parser"
+	nvd_v1_parser "gitlab.com/jacky850509/secra/internal/parser/nvd/v1"
 	"gitlab.com/jacky850509/secra/internal/storage"
 )
 
-var recent bool
-var modified bool
-var year uint16
+var (
+	recent   bool
+	modified bool
+	year     uint16
+)
 
 var v1Nvd = &cobra.Command{
 	Use:   "v1",
@@ -97,7 +99,7 @@ func ImportNvdv1(recent, modified bool, year uint16) {
 
 func ProcessImportNvdv1(db *storage.DBWrapper, data []byte, sourceName string) error {
 
-	var feed parser.Nvdv1CveFeed
+	var feed nvd_v1_parser.Nvdv1CveFeed
 	if err := json.Unmarshal(data, &feed); err != nil {
 		log.Fatalf("❌ Failed to parse feed JSON: %v", err)
 		return err
@@ -105,7 +107,7 @@ func ProcessImportNvdv1(db *storage.DBWrapper, data []byte, sourceName string) e
 	log.Printf("✅ Feed parsed with %d items.", len(feed.Items))
 
 	// Step 1: 轉換 CVEs
-	cves, err := parser.ConvertToCVEs(&feed)
+	cves, err := nvd_v1_parser.ConvertToCVEs(&feed)
 	if err != nil {
 		log.Fatalf("❌ Failed to convert CVEs: %v", err)
 		return err
@@ -127,11 +129,11 @@ func ProcessImportNvdv1(db *storage.DBWrapper, data []byte, sourceName string) e
 
 	// Step 4: 萃取 vendor/product 關聯
 	log.Println("🔍 Extracting vendors/products from configurations...")
-	vendors, products, relations := parser.ExtractVendorsAndProducts(&feed)
+	vendors, products, relations := nvd_v1_parser.ExtractVendorsAndProductsFromv1(&feed)
 
 	// Step 5: 寫入 vendors
 	log.Printf("📦 Inserting %d vendors...", len(vendors))
-	if err := importer.ImportVendorsAndProducts(db.DB, vendors, nil, nil, nil, nil); err != nil {
+	if err := importer.ImportVendorsAndProductsFromv1(db.DB, vendors, nil, nil, nil, nil); err != nil {
 		log.Fatalf("❌ Vendor insert failed: %v", err)
 		return err
 	}
@@ -155,7 +157,7 @@ func ProcessImportNvdv1(db *storage.DBWrapper, data []byte, sourceName string) e
 
 	// Step 7: 寫入 products
 	log.Printf("📦 Inserting %d products...", len(products))
-	if err := importer.ImportVendorsAndProducts(db.DB, nil, products, nil, nil, nil); err != nil {
+	if err := importer.ImportVendorsAndProductsFromv1(db.DB, nil, products, nil, nil, nil); err != nil {
 		log.Fatalf("❌ Product insert failed: %v", err)
 		return err
 	}
@@ -180,7 +182,7 @@ func ProcessImportNvdv1(db *storage.DBWrapper, data []byte, sourceName string) e
 	}
 
 	log.Printf("🔗 Linking %d CVEs to products...", len(relations))
-	if err := importer.ImportVendorsAndProducts(db.DB, nil, nil, relations, cveMap, productMap); err != nil {
+	if err := importer.ImportVendorsAndProductsFromv1(db.DB, nil, nil, relations, cveMap, productMap); err != nil {
 		log.Fatalf("❌ CVE-product relation insert failed: %v", err)
 		return err
 	}

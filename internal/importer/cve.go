@@ -10,6 +10,7 @@ import (
 
 func ImportCVEs(db *bun.DB, sourceID string, cves []model.CVE) error {
 	ctx := context.Background()
+	var successCount, errorCount int
 
 	for _, cve := range cves {
 		cve.SourceID = sourceID
@@ -25,10 +26,14 @@ func ImportCVEs(db *bun.DB, sourceID string, cves []model.CVE) error {
 			Exec(ctx)
 
 		if err != nil {
+			errorCount++
 			log.Printf("❌ Failed to upsert CVE %s: %v", cve.SourceUID, err)
+		} else {
+			successCount++
 		}
 	}
 
+	log.Printf("📊 CVE insert summary: %d success, %d failed", successCount, errorCount)
 	return nil
 }
 

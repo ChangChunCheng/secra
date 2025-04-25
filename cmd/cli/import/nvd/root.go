@@ -16,4 +16,5 @@ var Cmd = &cobra.Command{
 
 func init() {
 	Cmd.AddCommand(v1Nvd)
+	Cmd.AddCommand(v2Nvd)
 }

@@ -1,4 +1,4 @@
-package parser
+package v1
 
 import (
 	"strings"
@@ -14,7 +14,7 @@ type CVEProductRelation struct {
 }
 
 // 解析 vendor/product 關聯
-func ExtractVendorsAndProducts(feed *Nvdv1CveFeed) ([]model.Vendor, []model.Product, []CVEProductRelation) {
+func ExtractVendorsAndProductsFromv1(feed *Nvdv1CveFeed) ([]model.Vendor, []model.Product, []CVEProductRelation) {
 	vendorSet := map[string]string{}  // name → uuid
 	productSet := map[string]string{} // vendor:product → uuid
 	var relations []CVEProductRelation

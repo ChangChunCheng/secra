@@ -12,6 +12,7 @@ type AppConfig struct {
 	HTTPPort    string
 	PostgresDSN string
 	NvdURLv1    string
+	NvdURLv2    string
 }
 
 func Load() *AppConfig {
@@ -21,6 +22,7 @@ func Load() *AppConfig {
 		HTTPPort:    getenv("HTTP_PORT", ":8080"),
 		PostgresDSN: getenv("POSTGRES_DSN", "postgres://postgres:password@localhost:5432/secra?sslmode=disable"),
 		NvdURLv1:    getenv("NVD_URL_V1", "https://nvd.nist.gov/feeds/json/cve/1.1/"),
+		NvdURLv2:    getenv("NVD_URL_V2", "https://services.nvd.nist.gov/rest/json/cves/2.0"),
 	}
 }
 

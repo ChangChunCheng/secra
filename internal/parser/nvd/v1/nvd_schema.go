@@ -1,4 +1,4 @@
-package parser
+package v1
 
 import (
 	"fmt"
@@ -13,9 +13,12 @@ type NvdTime struct {
 func (nt *NvdTime) UnmarshalJSON(data []byte) error {
 	s := strings.Trim(string(data), `"`)
 	layouts := []string{
-		time.RFC3339,           // 2006-01-02T15:04:05Z07:00
-		"2006-01-02T15:04Z",    // fallback for short Z
-		"2006-01-02T15:04:05Z", // fallback full second + Z
+		time.RFC3339,                    // 標準含時區
+		"2006-01-02T15:04:05Z",          // 無 offset，Z 結尾
+		"2006-01-02T15:04:05",           // 無時區
+		"2006-01-02T15:04:05.000",       // 含毫秒無時區 ← ✅ 新增這個
+		"2006-01-02T15:04Z",             // 精簡 Z
+		"2006-01-02T15:04:05.000Z07:00", // 含毫秒含時區（如有）
 	}
 
 	var err error

@@ -1,3 +1,9 @@
+ENV_FILE := .env
+ifneq ("$(wildcard $(ENV_FILE))","")
+	include $(ENV_FILE)
+	export
+endif
+
 # ============================================================================
 # Metadata
 # ============================================================================
@@ -22,6 +28,12 @@ PROTO_GOOGLE := $(shell GOFLAGS=-mod=mod go list -f '{{ .Dir }}' -m google.golan
 CLI_BIN := secra-cli
 GRPC_BIN := secra-grpc
 HTTP_BIN := secra-api
+
+# ============================================================================
+# Environment
+# ============================================================================
+YEAR ?= 2025
+NVD_API_KEY ?= 1234567890
 
 # ============================================================================
 # Proto
@@ -107,7 +119,11 @@ migrate:
 migrate-status:
 	go run cmd/cli/secra.go migrate status
 
-YEAR ?= 2025
+import-nvd-v1-recent:
+	go run cmd/cli/secra.go import nvd v1 --recent=true
 
 import-nvd-v1:
 	go run cmd/cli/secra.go import nvd v1 --recent=true --modified=true --year=$(YEAR)
+
+import-nvd-v2:
+	go run cmd/cli/secra.go import nvd v2 --start=2024-01-01 --end=2024-01-15 --apikey=$(NVD_API_KEY)
