@@ -2,6 +2,7 @@
 package v2
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -44,16 +45,17 @@ type Nvdv2CveItem struct {
 }
 
 type Nvdv2CveCore struct {
-	ID               string                `json:"id"`
-	SourceIdentifier string                `json:"sourceIdentifier"`
-	Published        NvdTime               `json:"published"`
-	LastModified     NvdTime               `json:"lastModified"`
-	VulnStatus       string                `json:"vulnStatus"`
-	Descriptions     []LangValue           `json:"descriptions"`
-	Metrics          *Nvdv2CvssMetrics     `json:"metrics,omitempty"`
-	Configurations   []Nvdv2Configurations `json:"configurations,omitempty"`
-	References       []Nvdv2Reference      `json:"references,omitempty"`
-	CveMetadata      *Nvdv2Metadata        `json:"cveMetadata,omitempty"`
+	ID               string                 `json:"id"`
+	SourceIdentifier string                 `json:"sourceIdentifier"`
+	Published        NvdTime                `json:"published"`
+	LastModified     NvdTime                `json:"lastModified"`
+	VulnStatus       string                 `json:"vulnStatus"`
+	CveTags          json.RawMessage        `json:"cveTags,omitempty"`
+	Descriptions     []LangValue            `json:"descriptions"`
+	Metrics          *Nvdv2CvssMetrics      `json:"metrics,omitempty"`
+	Configurations   []*Nvdv2Configurations `json:"configurations,omitempty"`
+	References       []Nvdv2Reference       `json:"references"`
+	Weaknesses       []Nvdv2Weakness        `json:"weaknesses,omitempty"`
 }
 
 type Nvdv2CvssMetrics struct {
@@ -87,6 +89,13 @@ type Nvdv2Reference struct {
 	Tags   []string `json:"tags,omitempty"`
 }
 
+// Weaknesses 區塊（NVD v2）
+type Nvdv2Weakness struct {
+	Source      string      `json:"source"`
+	Type        string      `json:"type"`
+	Description []LangValue `json:"description"`
+}
+
 type Nvdv2Metadata struct {
 	ID          string `json:"cveId"`
 	State       string `json:"state"`
@@ -115,4 +124,15 @@ type Nvdv2CpeMatch struct {
 type LangValue struct {
 	Lang  string `json:"lang"`
 	Value string `json:"value"`
+}
+
+type CVEReference struct {
+	CveSourceUID string // NVD給的 CVE-xxxx-yyyy
+	URL          string
+	Source       string
+}
+
+type CVEWeakness struct {
+	CveSourceUID string // NVD給的 CVE-xxxx-yyyy
+	Weakness     string // 例如 "CWE-79"
 }

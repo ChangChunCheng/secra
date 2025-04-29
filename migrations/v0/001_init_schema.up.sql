@@ -41,3 +41,20 @@ CREATE TABLE cve_products(
     PRIMARY KEY (cve_id, product_id)
 );
 
+CREATE TABLE IF NOT EXISTS cve_references (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    cve_id UUID NOT NULL REFERENCES cves(id) ON DELETE CASCADE,
+    url TEXT NOT NULL,
+    source TEXT,
+    tags TEXT[],
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
+    UNIQUE (cve_id, url) 
+);
+
+CREATE TABLE IF NOT EXISTS cve_weaknesses (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    cve_id UUID NOT NULL REFERENCES cves(id) ON DELETE CASCADE,
+    weakness TEXT NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
+    UNIQUE (cve_id, weakness) 
+);

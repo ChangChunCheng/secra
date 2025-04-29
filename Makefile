@@ -32,8 +32,10 @@ HTTP_BIN := secra-api
 # ============================================================================
 # Environment
 # ============================================================================
-YEAR ?= 2025
+YEAR ?= $(shell date -u +%Y)
 NVD_API_KEY ?= 1234567890
+START ?= $$(date -u -d '72 hours ago' +%Y-%m-%d)
+END ?= $$(date -u -d '48 hours ago' +%Y-%m-%d)
 
 # ============================================================================
 # Proto
@@ -125,5 +127,11 @@ import-nvd-v1-recent:
 import-nvd-v1:
 	go run cmd/cli/secra.go import nvd v1 --recent=true --modified=true --year=$(YEAR)
 
+# 匯入 NVD v2 (新版) → 需要傳入起始日（YYYY-MM-DD），結束日可選
 import-nvd-v2:
-	go run cmd/cli/secra.go import nvd v2 --start=2024-01-01 --end=2024-01-15 --apikey=$(NVD_API_KEY)
+ifneq ($(strip $(START)),)
+	go run cmd/cli/secra.go import nvd v2 --start=$(START) $(if $(END),--end=$(END)) $(if $(APIKEY),--apikey=$(APIKEY))
+else
+	@echo "❌ 必須指定 START 日期 (YYYY-MM-DD)。例如：make import-nvd-v2 START=2025-01-01 END=2025-01-31"
+	@exit 1
+endif
