@@ -4,6 +4,9 @@ ifneq ("$(wildcard $(ENV_FILE))","")
 	export
 endif
 
+export PATH=$PATH:$(go env GOPATH)/bin
+
+
 # ============================================================================
 # Metadata
 # ============================================================================
@@ -19,11 +22,6 @@ LDFLAGS := -X 'main.Version=$(VERSION)' \
 # ============================================================================
 # Paths and output
 # ============================================================================
-
-PROTO_DIR := proto
-OUT_DIR := api/gen/v1
-PROTO_FILE := $(PROTO_DIR)/secra.proto
-PROTO_GOOGLE := $(shell GOFLAGS=-mod=mod go list -f '{{ .Dir }}' -m google.golang.org/protobuf)
 
 CLI_BIN := secra-cli
 GRPC_BIN := secra-grpc
@@ -41,15 +39,41 @@ END ?= $$(date -u -d '48 hours ago' +%Y-%m-%d)
 # Proto
 # ============================================================================
 
-proto:
+install-proto-tools:
+	@echo "Installing protoc plugins..."
+	go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
+	go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
+	go install github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-grpc-gateway@latest
+	go install github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-openapiv2@latest
+	@echo "✅ All protoc plugins installed."
+
+PROTO_DIR=api/proto/v1
+OUT_DIR=api/gen/v1
+PROTO_SRCS=$(shell find $(PROTO_DIR) -name "*.proto")
+PROTO_GOOGLE=$(shell go list -m -f '{{ .Dir }}' github.com/grpc-ecosystem/grpc-gateway/v2)
+PROTOBUF_GOOGLE=$(shell go list -f '{{ .Dir }}' google.golang.org/protobuf)
+GRPC_GATEWAY_GOOGLE=$(shell go list -f '{{ .Dir }}' github.com/grpc-ecosystem/grpc-gateway/v2)
+proto: $(PROTO_SRCS)
 	@mkdir -p $(OUT_DIR)
 	protoc \
 		-I$(PROTO_DIR) \
-		-I$(PROTO_GOOGLE)/.. \
+		-I$(GRPC_GATEWAY_GOOGLE)/../.. \
+		-I$(PROTOBUF_GOOGLE)/.. \
 		--go_out=$(OUT_DIR) --go_opt=paths=source_relative \
 		--go-grpc_out=$(OUT_DIR) --go-grpc_opt=paths=source_relative \
-		$(PROTO_FILE)
-	@echo "✅ Proto compiled."
+		--grpc-gateway_out=$(OUT_DIR) --grpc-gateway_opt=paths=source_relative \
+		$(PROTO_SRCS)
+
+
+swagger: $(PROTO_SRCS)
+	@mkdir -p $(OUT_DIR)
+	protoc \
+		-I$(PROTO_DIR) \
+		-I$(PROTO_GOOGLE)/../.. \
+		-I$(PROTOBUF_GOOGLE)/.. \
+		--openapiv2_out=$(OUT_DIR) --openapiv2_opt=logtostderr=true \
+		$(PROTO_SRCS)
+	@echo "✅ Swagger/OpenAPI generated."
 
 # ============================================================================
 # Build with metadata

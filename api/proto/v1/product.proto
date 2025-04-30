@@ -1,0 +1,47 @@
+syntax = "proto3";
+
+package secra.v1;
+
+import "google/protobuf/empty.proto";
+import "common.proto";
+
+option go_package = "gitlab.com/jacky850509/secra/api/gen/v1;secra_v1";
+
+message Product {
+  string id = 1;
+  string name = 2;
+  string vendor_id = 3;
+}
+
+message CreateProductRequest {
+  Product product = 1;
+}
+
+message GetProductRequest {
+  string id = 1;
+}
+
+message ListProductRequest {
+  PageRequest page = 1;
+}
+
+message ListProductResponse {
+  repeated Product products = 1;
+  PageResponse page = 2;
+}
+
+message UpdateProductRequest {
+  Product product = 1;
+}
+
+message DeleteProductRequest {
+  string id = 1;
+}
+
+service ProductService {
+  rpc CreateProduct(CreateProductRequest) returns (Product);
+  rpc GetProduct(GetProductRequest) returns (Product);
+  rpc ListProduct(ListProductRequest) returns (ListProductResponse);
+  rpc UpdateProduct(UpdateProductRequest) returns (Product);
+  rpc DeleteProduct(DeleteProductRequest) returns (google.protobuf.Empty);
+}

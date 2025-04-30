@@ -41,6 +41,7 @@ Thumbs.db
 
 # Compiled proto files
 api/gen/**/*.pb.go
+api/gen/**/*.swagger.json
 
 # Database
 data/

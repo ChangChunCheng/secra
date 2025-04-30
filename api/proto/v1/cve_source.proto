@@ -1,0 +1,50 @@
+syntax = "proto3";
+
+package secra.v1;
+
+import "google/protobuf/empty.proto";
+import "common.proto";
+
+option go_package = "gitlab.com/jacky850509/secra/api/gen/v1;secra_v1";
+
+message CVESource {
+  string id = 1;
+  string name = 2;
+  string type = 3;
+  string url = 4;
+  bool enabled = 5;
+  string created_at = 6;
+}
+
+message CreateCVESourceRequest {
+  CVESource source = 1;
+}
+
+message GetCVESourceRequest {
+  string id = 1;
+}
+
+message ListCVESourceRequest {
+  PageRequest page = 1;
+}
+
+message ListCVESourceResponse {
+  repeated CVESource sources = 1;
+  PageResponse page = 2;
+}
+
+message UpdateCVESourceRequest {
+  CVESource source = 1;
+}
+
+message DeleteCVESourceRequest {
+  string id = 1;
+}
+
+service CVESourceService {
+  rpc CreateCVESource(CreateCVESourceRequest) returns (CVESource);
+  rpc GetCVESource(GetCVESourceRequest) returns (CVESource);
+  rpc ListCVESource(ListCVESourceRequest) returns (ListCVESourceResponse);
+  rpc UpdateCVESource(UpdateCVESourceRequest) returns (CVESource);
+  rpc DeleteCVESource(DeleteCVESourceRequest) returns (google.protobuf.Empty);
+}

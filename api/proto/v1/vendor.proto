@@ -1,0 +1,46 @@
+syntax = "proto3";
+
+package secra.v1;
+
+import "google/protobuf/empty.proto";
+import "common.proto";
+
+option go_package = "gitlab.com/jacky850509/secra/api/gen/v1;secra_v1";
+
+message Vendor {
+  string id = 1;
+  string name = 2;
+}
+
+message CreateVendorRequest {
+  Vendor vendor = 1;
+}
+
+message GetVendorRequest {
+  string id = 1;
+}
+
+message ListVendorRequest {
+  PageRequest page = 1;
+}
+
+message ListVendorResponse {
+  repeated Vendor vendors = 1;
+  PageResponse page = 2;
+}
+
+message UpdateVendorRequest {
+  Vendor vendor = 1;
+}
+
+message DeleteVendorRequest {
+  string id = 1;
+}
+
+service VendorService {
+  rpc CreateVendor(CreateVendorRequest) returns (Vendor);
+  rpc GetVendor(GetVendorRequest) returns (Vendor);
+  rpc ListVendor(ListVendorRequest) returns (ListVendorResponse);
+  rpc UpdateVendor(UpdateVendorRequest) returns (Vendor);
+  rpc DeleteVendor(DeleteVendorRequest) returns (google.protobuf.Empty);
+}
