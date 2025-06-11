@@ -8,7 +8,7 @@ import (
 	"net/http"
 )
 
-// DownloadNvdFeed 下載指定年份的 NVD JSON.gz 並解壓為原始 JSON bytes
+// DownloadNvdv1FeedYear 下載指定年份的 NVD JSON.gz 並解壓為原始 JSON bytes
 func DownloadNvdv1FeedYear(year uint16, url string) ([]byte, error) {
 	url = fmt.Sprintf("%s/nvdcve-1.1-%d.json.gz", url, year)
 
