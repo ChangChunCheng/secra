@@ -2,7 +2,9 @@ package nvd
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"time"
@@ -199,6 +201,11 @@ func ensureCveSource(db *bun.DB, name, description, urlStr string) (*model.CVESo
 	err := db.NewSelect().Model(&src).Where("name = ?", name).Scan(ctx)
 	if err == nil {
 		return &src, nil // 已存在，直接回傳
+	}
+
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		// 只有在確定資料不存在時才繼續建立，其他錯誤直接回傳
+		return nil, err
 	}
 
 	// 只在來源尚未存在時，才使用提供的 description 和 url
