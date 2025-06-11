@@ -50,7 +50,7 @@ func ImportNvdv1(recent, modified bool, year uint16) {
 
 	var data []byte
 	var err error
-	processDatas := make(map[string][]byte)
+	processData := make(map[string][]byte)
 
 	if recent {
 		log.Printf("📥 Downloading NVD, url=%s, recent feed...", cfg.NvdURLv1)
@@ -58,7 +58,7 @@ func ImportNvdv1(recent, modified bool, year uint16) {
 		if err != nil {
 			log.Fatalf("❌ Failed to fetch feed: %v", err)
 		} else {
-			processDatas["recent"] = data
+			processData["recent"] = data
 		}
 	}
 	if modified {
@@ -67,7 +67,7 @@ func ImportNvdv1(recent, modified bool, year uint16) {
 		if err != nil {
 			log.Fatalf("❌ Failed to fetch feed: %v", err)
 		} else {
-			processDatas["modified"] = data
+			processData["modified"] = data
 		}
 	}
 	if year >= 2002 {
@@ -76,18 +76,18 @@ func ImportNvdv1(recent, modified bool, year uint16) {
 		if err != nil {
 			log.Fatalf("❌ Failed to fetch feed: %v", err)
 		} else {
-			processDatas[fmt.Sprintf("year-%d", year)] = data
+			processData[fmt.Sprintf("year-%d", year)] = data
 		}
 	}
-	if len(processDatas) == 0 {
+	if len(processData) == 0 {
 		log.Printf("❌ No feed type specified. Use --recent, --modified, or --year.")
 		return
 	}
-	log.Printf("📥 Downloaded %d feeds.", len(processDatas))
+	log.Printf("📥 Downloaded %d feeds.", len(processData))
 
-	log.Printf("📦 Processing %d feeds...", len(processDatas))
+	log.Printf("📦 Processing %d feeds...", len(processData))
 	// Step 1: 轉換 CVEs
-	for feedName, data := range processDatas {
+	for feedName, data := range processData {
 		log.Printf("📦 Processing %s feed...", feedName)
 		if err = ProcessImportNvdv1(db, data, feedName); err != nil {
 			log.Fatalf("❌ Failed to process feed %s: %v", feedName, err)
