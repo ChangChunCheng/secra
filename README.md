@@ -9,6 +9,7 @@ Secra 是一個模組化的 CVE 漏洞資料平台，支援多來源同步、自
 - 支援 CLI / gRPC / REST API 操作
 - 可整合 NVD、RedHat、JPCERT 等來源
 - 擴充性強，可接 webhook 或風險分析模組
+- 內建使用者管理，可區分一般使用者與管理員
 
 ## 快速開始
 
@@ -16,6 +17,8 @@ Secra 是一個模組化的 CVE 漏洞資料平台，支援多來源同步、自
 git clone git@gitlab.com:jacky850509/secra.git
 cd secra
 go run cmd/cli/secra.go
+# 建立一個本地使用者
+go run cmd/cli/secra.go user register-local --username=test --email=test@example.com --password=pass
 ```
 
 ---

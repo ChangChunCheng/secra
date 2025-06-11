@@ -13,8 +13,8 @@ type User struct {
 	Username           string    `bun:"username,unique,notnull" json:"username"`
 	Email              string    `bun:"email,unique,notnull" json:"email"`
 	PasswordHash       string    `bun:"password_hash,notnull" json:"-"`
-	Role               string    `bun:"role,notnull" json:"role"`     // "user" or "admin"
-	Status             string    `bun:"status,notnull" json:"status"` // "active" or "disabled"
+	Role               string    `bun:"role,notnull" json:"role"` // "user" or "admin"
+	IsActive           bool      `bun:"is_active,notnull,default:true" json:"is_active"`
 	MustChangePassword bool      `bun:"must_change_password,notnull,default:false" json:"must_change_password"`
 	OAuthProvider      *string   `bun:"oauth_provider,nullzero" json:"oauth_provider,omitempty"`
 	OAuthID            *string   `bun:"oauth_id,nullzero" json:"oauth_id,omitempty"`

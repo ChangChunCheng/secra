@@ -6,7 +6,7 @@ CREATE TABLE IF NOT EXISTS users (
     email TEXT NOT NULL UNIQUE,
     password_hash TEXT NOT NULL,
     role TEXT NOT NULL, -- 'user' or 'admin'
-    status TEXT NOT NULL, -- 'active' or 'disabled'
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
     must_change_password BOOLEAN NOT NULL DEFAULT FALSE,
     oauth_provider TEXT NULL,
     oauth_id TEXT NULL,

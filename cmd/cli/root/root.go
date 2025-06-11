@@ -4,6 +4,7 @@ import (
 	"github.com/spf13/cobra"
 	importcmd "gitlab.com/jacky850509/secra/cmd/cli/import"
 	"gitlab.com/jacky850509/secra/cmd/cli/migrate"
+	usercmd "gitlab.com/jacky850509/secra/cmd/cli/user"
 )
 
 var rootCmd = &cobra.Command{
@@ -19,4 +20,5 @@ func Execute() error {
 func init() {
 	rootCmd.AddCommand(migrate.Cmd)
 	rootCmd.AddCommand(importcmd.Cmd)
+	rootCmd.AddCommand(usercmd.Cmd)
 }
