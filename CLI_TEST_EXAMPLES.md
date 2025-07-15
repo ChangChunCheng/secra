@@ -31,7 +31,38 @@ go run cmd/cli/secra.go user login \
 75f05a92-db6e-4f5d-91b9-a25333495f89
 ```
 
-## 3. 新增 CVE 資源 (resource create-cve-resource)
+## 3. 取得個人資料 (user get-profile)
+
+```bash
+go run cmd/cli/secra.go user get-profile \
+  --token "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ7XCJpZFwiOlwiNTc4N2U3MTItNmUzOS00OWIyLTk5NDctNDNiODJiYzg2MGUxXCIsXCJ1c2VybmFtZVwiOlwiYWxpY2VcIixcInJvbGVcIjpcInVzZXJcIn0iLCJleHAiOjE3NTI2NTYxODksImlhdCI6MTc1MjU2OTc4OX0.lo4VNJ8RqKc6-H49KbgBnnbXFj4UckNggT2MGCeq16U"
+```
+
+輸出範例：
+
+```bash
+ID: 123e4567-e89b-12d3-a456-426614174000
+Username: alice
+Email: alice@example.com
+```
+
+## 4. 更新使用者個人資料 (user update-profile)
+
+```bash
+go run cmd/cli/secra.go user update-profile \
+  --token "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ7XCJpZFwiOlwiNTc4N2U3MTItNmUzOS00OWIyLTk5NDctNDNiODJiYzg2MGUxXCIsXCJ1c2VybmFtZVwiOlwiYWxpY2VcIixcInJvbGVcIjpcInVzZXJcIn0iLCJleHAiOjE3NTI2NTYxODksImlhdCI6MTc1MjU2OTc4OX0.lo4VNJ8RqKc6-H49KbgBnnbXFj4UckNggT2MGCeq16U" \
+  --email "new@example.com" 
+```
+
+輸出範例：
+
+```bash
+Updated Profile:
+ID: 123e4567-e89b-12d3-a456-426614174000
+Username: alice
+Email: new@example.com
+```
+## 4. 新增 CVE 資源 (resource create-cve-resource)
 
 ```bash
 go run cmd/cli/secra.go resource create-cve-resource \

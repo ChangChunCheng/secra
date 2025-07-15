@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/golang-jwt/jwt/v4"
@@ -19,9 +20,9 @@ type UserService struct {
 }
 
 type UserJWTSecret struct {
-	id       uuid.UUID
-	username string
-	role     string
+	ID       uuid.UUID `json:"id"`
+	Username string    `json:"username"`
+	Role     string    `json:"role"`
 }
 
 // NewUserService creates a new UserService.
@@ -89,9 +90,9 @@ func (s *UserService) Login(ctx context.Context, username, password string) (str
 	}
 
 	sub, err := json.Marshal(UserJWTSecret{
-		id:       user.ID,
-		username: user.Username,
-		role:     user.Role,
+		ID:       user.ID,
+		Username: user.Username,
+		Role:     user.Role,
 	})
 	if err != nil {
 		return "", 0, err
@@ -115,4 +116,47 @@ func (s *UserService) generateJWT(sub []byte) (string, int64, error) {
 		return "", 0, err
 	}
 	return token, expireAt, nil
+}
+
+func (s *UserService) parseJWT(token string) (*UserJWTSecret, error) {
+	// parse token
+	parsed, err := jwt.ParseWithClaims(token, &jwt.RegisteredClaims{}, func(t *jwt.Token) (interface{}, error) {
+		return []byte(config.Load().JWTConfig.Secret), nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	claims, ok := parsed.Claims.(*jwt.RegisteredClaims)
+	if !ok || claims.Subject == "" {
+		return nil, errors.New("invalid token claims")
+	}
+	// subject contains marshaled UserJWTSecret
+	var secret *UserJWTSecret
+	if err := json.Unmarshal([]byte(claims.Subject), &secret); err != nil {
+		return nil, err
+	}
+	return secret, nil
+}
+
+// GetProfile parses the JWT token, retrieves the user ID, and returns the user profile.
+func (s *UserService) GetProfile(ctx context.Context, token string) (*model.User, error) {
+	secret, err := s.parseJWT(token)
+	if err != nil {
+		return nil, err
+	}
+	fmt.Println(secret)
+	// retrieve user by ID
+	return s.repo.FindByID(ctx, secret.ID.String())
+}
+
+// UpdateProfile parses the JWT token, updates the user's email (ignoring fullName), and returns the updated user.
+// Note: fullName field is not stored in the user model and is ignored.
+func (s *UserService) UpdateProfile(ctx context.Context, token, email string) (*model.User, error) {
+	// parse token to get user ID
+	secret, err := s.parseJWT(token)
+	if err != nil {
+		return nil, err
+	}
+	// update email via repository
+	return s.repo.UpdateEmail(ctx, secret.ID.String(), email)
 }

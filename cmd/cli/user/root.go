@@ -17,4 +17,5 @@ var Cmd = &cobra.Command{
 func init() {
 	Cmd.AddCommand(registerCmd)
 	Cmd.AddCommand(loginCmd)
+	Cmd.AddCommand(updateProfileCmd)
 }

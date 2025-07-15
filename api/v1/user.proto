@@ -29,7 +29,6 @@ message UserProfile {
   string id       = 1;
   string username = 2;
   string email    = 3;
-  string fullName = 4;
 }
 
 message LoginResponse {

@@ -65,12 +65,48 @@ func (h *UserServiceHandler) Login(ctx context.Context, req *secra_v1.LoginReque
 
 // GetProfile is a stub. TODO: implement.
 func (h *UserServiceHandler) GetProfile(ctx context.Context, req *secra_v1.TokenRequest) (*secra_v1.UserProfile, error) {
-	// TODO: implement GetProfile
-	return nil, nil
+	// load config and initialize DB
+	cfg := config.Load()
+	db := storage.NewDB(cfg.PostgresDSN, false)
+
+	// create service
+	userRepo := repo.NewUserRepository(db.DB)
+	userSvc := service.NewUserService(userRepo)
+
+	// get user profile from token
+	usr, err := userSvc.GetProfile(ctx, req.Token)
+	if err != nil {
+		return nil, err
+	}
+
+	// map model.User to UserProfile
+	return &secra_v1.UserProfile{
+		Id:       usr.ID.String(),
+		Username: usr.Username,
+		Email:    usr.Email,
+	}, nil
 }
 
 // UpdateProfile is a stub. TODO: implement.
 func (h *UserServiceHandler) UpdateProfile(ctx context.Context, req *secra_v1.UpdateProfileRequest) (*secra_v1.UserProfile, error) {
-	// TODO: implement UpdateProfile
-	return nil, nil
+	// load config and initialize DB
+	cfg := config.Load()
+	db := storage.NewDB(cfg.PostgresDSN, false)
+
+	// create service
+	userRepo := repo.NewUserRepository(db.DB)
+	userSvc := service.NewUserService(userRepo)
+
+	// update user profile (only email; fullName ignored)
+	usr, err := userSvc.UpdateProfile(ctx, req.Token, req.Email)
+	if err != nil {
+		return nil, err
+	}
+
+	// map model.User to UserProfile
+	return &secra_v1.UserProfile{
+		Id:       usr.ID.String(),
+		Username: usr.Username,
+		Email:    usr.Email,
+	}, nil
 }

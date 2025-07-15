@@ -3,6 +3,7 @@ package repo
 import (
 	"context"
 
+	"github.com/google/uuid"
 	"github.com/uptrace/bun"
 	"gitlab.com/jacky850509/secra/internal/model"
 )
@@ -41,4 +42,28 @@ func (r *UserRepository) GetUserByEmail(ctx context.Context, email string) (*mod
 		Where("email = ?", email).
 		Scan(ctx)
 	return user, err
+}
+
+// FindByID retrieves a user by ID.
+func (r *UserRepository) FindByID(ctx context.Context, id string) (*model.User, error) {
+	user := new(model.User)
+	err := r.db.NewSelect().
+		Model(user).
+		Where("id = ?", id).
+		Scan(ctx)
+	return user, err
+}
+
+// UpdateEmail updates the user's email.
+func (r *UserRepository) UpdateEmail(ctx context.Context, id, email string) (*model.User, error) {
+	user := &model.User{ID: uuid.MustParse(id), Email: email}
+	_, err := r.db.NewUpdate().
+		Model(user).
+		Column("email", "updated_at").
+		WherePK().
+		Exec(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return r.FindByID(ctx, id)
 }
