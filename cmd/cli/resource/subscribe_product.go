@@ -27,6 +27,8 @@ var subscribeProductCmd = &cobra.Command{
 		userID, _ := cmd.Flags().GetString("user-id")
 		productID, _ := cmd.Flags().GetString("product-id")
 		severity, _ := cmd.Flags().GetString("severity")
+		// 將 severity 轉大寫以便映射
+		severity = strings.ToUpper(severity)
 
 		target := model.SubscriptionTarget{
 			TargetTypeID: 2, // product type

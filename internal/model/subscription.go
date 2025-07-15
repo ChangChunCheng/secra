@@ -13,7 +13,7 @@ type Subscription struct {
 
 	ID                uuid.UUID            `bun:"id,pk,type:uuid,default:gen_random_uuid()"`
 	UserID            uuid.UUID            `bun:"user_id,type:uuid,nullzero"`
-	SeverityThreshold string               `bun:"severity_threshold,default:'LOW'"`
+	SeverityThreshold int16                `bun:"severity_threshold,default:2"` // 1=INFO,2=LOW,3=MEDIUM,4=HIGH,5=CRITICAL
 	CreatedAt         time.Time            `bun:"created_at,notnull,default:current_timestamp"`
 	Targets           []SubscriptionTarget `bun:"rel:has-many,join:id=subscription_id"`
 }

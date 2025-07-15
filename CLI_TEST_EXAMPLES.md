@@ -28,7 +28,7 @@ go run cmd/cli/secra.go user login \
 輸出範例：
 
 ```bash
-6f00ce7c-6b18-4b4e-a861-b58c4f221d04
+75f05a92-db6e-4f5d-91b9-a25333495f89
 ```
 
 ## 3. 新增 CVE 資源 (resource create-cve-resource)
@@ -49,7 +49,7 @@ CVE Source created: ID=<source-uuid> Name=VendorX Resource URL=https://vendorx.c
 
 ```bash
 go run cmd/cli/secra.go resource create-cve \
-  --source-id 7892cf6a-5b71-4496-a25a-8de9d58a8fa2 \
+  --source-id bff832d2-002e-41b9-988f-90f930277a58 \
   --source-uid "CVE-2025-12345" \
   --title "Sample vulnerability" \
   --description "Sample vulnerability"
@@ -65,8 +65,8 @@ CVE created: ID=<cve-uuid> SourceID=<source-uuid> SourceUID=CVE-2025-12345
 
 ```bash
 go run cmd/cli/secra.go resource subscribe-vendor \
-  --user-id "43b5d7a3-958c-40c4-8237-c501a46c9ff5" \
-  --vendor-id "3d9ed458-4df8-478e-81f3-5bb5e35b9192" \
+  --user-id "5787e712-6e39-49b2-9947-43b82bc860e1" \
+  --vendor-id "0e029aaa-d339-413a-af9e-f1bb26c9a1f8" \
   --severity "medium"
 ```
 
@@ -80,8 +80,8 @@ Subscription created: User=<user-uuid> Vendors=[<vendor-uuid>] Severity=medium
 
 ```bash
 go run cmd/cli/secra.go resource subscribe-product \
-  --user-id "43b5d7a3-958c-40c4-8237-c501a46c9ff5" \
-  --product-id "3f2ddd4e-8534-4af1-a959-4c54c5cdc226" \
+  --user-id "5787e712-6e39-49b2-9947-43b82bc860e1" \
+  --product-id "63637e30-0c91-419c-bd46-ad68650dacf9" \
   --severity "low"
 ```
 
@@ -95,8 +95,8 @@ Subscription created: User=<user-uuid> Products=[<product-uuid>] Severity=low
 
 ```bash
 go run cmd/cli/secra.go resource subscribe-cve-resource \
-  --user-id "43b5d7a3-958c-40c4-8237-c501a46c9ff5" \
-  --resource-id "7892cf6a-5b71-4496-a25a-8de9d58a8fa2" \
+  --user-id "5787e712-6e39-49b2-9947-43b82bc860e1" \
+  --resource-id "bff832d2-002e-41b9-988f-90f930277a58" \
   --severity "high"
 ```
 

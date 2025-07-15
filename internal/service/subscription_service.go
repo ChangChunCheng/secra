@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"strings"
 
 	"github.com/google/uuid"
 	"gitlab.com/jacky850509/secra/internal/model"
@@ -20,9 +21,22 @@ func NewSubscriptionService(r *repo.SubscriptionRepository) *SubscriptionService
 
 // CreateSubscription creates a subscription with its targets.
 func (s *SubscriptionService) CreateSubscription(ctx context.Context, userID string, targets []model.SubscriptionTarget, severity string) (*model.Subscription, error) {
+	// 文字等級轉小寫或大寫都支援，先轉大寫
+	sev := strings.ToUpper(severity)
+	sevMap := map[string]int16{
+		"INFO":     1,
+		"LOW":      2,
+		"MEDIUM":   3,
+		"HIGH":     4,
+		"CRITICAL": 5,
+	}
+	levelID, ok := sevMap[sev]
+	if !ok {
+		levelID = 2 // Default to LOW
+	}
 	sub := &model.Subscription{
 		UserID:            mustParseUUID(userID),
-		SeverityThreshold: severity,
+		SeverityThreshold: levelID,
 	}
 	if err := s.repo.CreateSubscription(ctx, sub, targets); err != nil {
 		return nil, err

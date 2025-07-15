@@ -27,6 +27,8 @@ var subscribeCveResourceCmd = &cobra.Command{
 		userID, _ := cmd.Flags().GetString("user-id")
 		resourceID, _ := cmd.Flags().GetString("resource-id")
 		severity, _ := cmd.Flags().GetString("severity")
+		// 將 severity 轉大寫以便映射
+		severity = strings.ToUpper(severity)
 
 		target := model.SubscriptionTarget{
 			TargetTypeID: 3, // cve_resource type
