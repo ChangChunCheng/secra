@@ -35,8 +35,10 @@ go run cmd/cli/secra.go user login \
 
 ```bash
 go run cmd/cli/secra.go resource create-cve-resource \
-  --name "VendorX Resource" \
-  --url "https://vendorx.com/feed"
+  --name "ttt" \
+  --type "VendorX Resource" \
+  --url "https://vendorx.com/feed" \
+  --description "https://vendorx.com/feed/desc"
 ```
 
 輸出範例：

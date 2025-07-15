@@ -22,8 +22,10 @@ var createCveResourceCmd = &cobra.Command{
 		svc := service.NewCveSourceService(cveRepo)
 
 		name, _ := cmd.Flags().GetString("name")
+		ctype, _ := cmd.Flags().GetString("type")
 		url, _ := cmd.Flags().GetString("url")
-		cveResource, err := svc.Create(context.Background(), name, url)
+		desc, _ := cmd.Flags().GetString("description")
+		cveResource, err := svc.Create(context.Background(), name, url, ctype, desc)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "error: %v\n", err)
 			os.Exit(1)
@@ -35,7 +37,11 @@ var createCveResourceCmd = &cobra.Command{
 func init() {
 	Cmd.AddCommand(createCveResourceCmd)
 	createCveResourceCmd.Flags().String("name", "", "Resource name")
+	createCveResourceCmd.Flags().String("type", "", "CVE resource type")
 	createCveResourceCmd.Flags().String("url", "", "Resource URL")
+	createCveResourceCmd.Flags().String("description", "", "Description")
 	createCveResourceCmd.MarkFlagRequired("name")
+	createCveResourceCmd.MarkFlagRequired("type")
 	createCveResourceCmd.MarkFlagRequired("url")
+	createCveResourceCmd.MarkFlagRequired("description")
 }

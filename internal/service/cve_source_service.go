@@ -18,11 +18,13 @@ func NewCveSourceService(r *repo.CVESourceRepo) *CveSourceService {
 }
 
 // Create adds a new CVE resource.
-func (s *CveSourceService) Create(ctx context.Context, name, url string) (*model.CVESource, error) {
+func (s *CveSourceService) Create(ctx context.Context, name, url, ctype, desc string) (*model.CVESource, error) {
 	src := &model.CVESource{
 		// ID is nil, DB will generate
-		Name: name,
-		URL:  url,
+		Type:        ctype,
+		Name:        name,
+		URL:         url,
+		Description: desc,
 	}
 	if err := s.repo.Create(ctx, src); err != nil {
 		return nil, err
