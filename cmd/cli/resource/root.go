@@ -14,4 +14,8 @@ func init() {
 	Cmd.AddCommand(subscribeCveResourceCmd)
 	Cmd.AddCommand(subscribeProductCmd)
 	Cmd.AddCommand(subscribeVendorCmd)
+	Cmd.AddCommand(createVendorCmd)
+	Cmd.AddCommand(listVendorCmd)
+	Cmd.AddCommand(updateVendorCmd)
+	Cmd.AddCommand(deleteVendorCmd)
 }

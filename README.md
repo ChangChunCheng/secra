@@ -32,6 +32,13 @@ secra/
 │   └── cron/        # 未來排程用 CLI 入口
 ├── internal/
 │   ├── model/       # 資料表 ORM 定義
+## 啟動 gRPC 伺服器
+
+在使用 CLI 的 `create-vendor` 等 gRPC 相關命令前，需先啟動 gRPC 伺服器：
+
+```bash
+go run cmd/server/grpc_server/register.go
+```
 │   ├── db/          # 資料庫初始化
 │   ├── fetcher/     # 抓取來源資料(如 NVD)
 │   ├── parser/      # 解壓與解析 JSON

@@ -62,6 +62,7 @@ ID: 123e4567-e89b-12d3-a456-426614174000
 Username: alice
 Email: new@example.com
 ```
+
 ## 4. 新增 CVE 資源 (resource create-cve-resource)
 
 ```bash
@@ -88,10 +89,77 @@ go run cmd/cli/secra.go resource create-cve \
   --description "Sample vulnerability"
 ```
 
+## 5. 新增 Vendor (resource create-vendor)
+
+```bash
+go run cmd/cli/secra.go resource create-vendor \
+  --name "VendorX"
+```
+
+輸出範例：
+
+```bash
+Created Vendor: ID=<vendor-uuid> Name=VendorX
+```
+
 輸出範例：
 
 ```bash
 CVE created: ID=<cve-uuid> SourceID=<source-uuid> SourceUID=CVE-2025-12345
+```
+## 8. 取得 Vendor (resource get-vendor)
+
+```bash
+go run cmd/cli/secra.go resource get-vendor \
+  --id "<vendor-uuid>"
+```
+
+輸出範例：
+
+```bash
+ID=<vendor-uuid> Name=VendorX
+```
+
+## 9. 列出 Vendors (resource list-vendor)
+
+```bash
+go run cmd/cli/secra.go resource list-vendor \
+  --limit 5 \
+  --offset 0
+```
+
+輸出範例：
+
+```bash
+ID=uuid1 Name=VendorA
+ID=uuid2 Name=VendorB
+```
+
+## 10. 更新 Vendor (resource update-vendor)
+
+```bash
+go run cmd/cli/secra.go resource update-vendor \
+  --id "<vendor-uuid>" \
+  --name "NewVendorName"
+```
+
+輸出範例：
+
+```bash
+Updated Vendor: ID=<vendor-uuid> Name=NewVendorName
+```
+
+## 11. 刪除 Vendor (resource delete-vendor)
+
+```bash
+go run cmd/cli/secra.go resource delete-vendor \
+  --id "<vendor-uuid>"
+```
+
+輸出範例：
+
+```bash
+Deleted Vendor: ID=<vendor-uuid>
 ```
 
 ## 5. 訂閱 Vendor (resource subscribe-vendor)
