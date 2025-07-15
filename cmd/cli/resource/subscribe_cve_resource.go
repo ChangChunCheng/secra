@@ -44,7 +44,6 @@ var subscribeCveResourceCmd = &cobra.Command{
 }
 
 func init() {
-	Cmd.AddCommand(subscribeCveResourceCmd)
 	subscribeCveResourceCmd.Flags().String("user-id", "", "User UUID")
 	subscribeCveResourceCmd.Flags().String("resource-id", "", "CVE Resource UUID to subscribe")
 	subscribeCveResourceCmd.Flags().String("severity", "low", "Severity threshold")

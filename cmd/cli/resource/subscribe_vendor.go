@@ -44,7 +44,6 @@ var subscribeVendorCmd = &cobra.Command{
 }
 
 func init() {
-	Cmd.AddCommand(subscribeVendorCmd)
 	subscribeVendorCmd.Flags().String("user-id", "", "User UUID")
 	subscribeVendorCmd.Flags().String("vendor-id", "", "Vendor UUID to subscribe")
 	subscribeVendorCmd.Flags().String("severity", "low", "Severity threshold")

@@ -37,7 +37,6 @@ var createCveCmd = &cobra.Command{
 }
 
 func init() {
-	Cmd.AddCommand(createCveCmd)
 	createCveCmd.Flags().String("source-id", "", "Resource ID")
 	createCveCmd.Flags().String("source-uid", "", "Original CVE identifier")
 	createCveCmd.Flags().String("title", "", "CVE title")

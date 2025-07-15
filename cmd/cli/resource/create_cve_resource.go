@@ -35,7 +35,6 @@ var createCveResourceCmd = &cobra.Command{
 }
 
 func init() {
-	Cmd.AddCommand(createCveResourceCmd)
 	createCveResourceCmd.Flags().String("name", "", "Resource name")
 	createCveResourceCmd.Flags().String("type", "", "CVE resource type")
 	createCveResourceCmd.Flags().String("url", "", "Resource URL")

@@ -34,7 +34,6 @@ var loginCmd = &cobra.Command{
 }
 
 func init() {
-	Cmd.AddCommand(loginCmd)
 	loginCmd.Flags().String("username", "", "Username")
 	loginCmd.Flags().String("password", "", "Password")
 	loginCmd.MarkFlagRequired("username")

@@ -9,6 +9,9 @@ var Cmd = &cobra.Command{
 }
 
 func init() {
-	// Subcommands will be added here
-	// e.g., Cmd.AddCommand(createCveResourceCmd)
+	Cmd.AddCommand(createCveResourceCmd)
+	Cmd.AddCommand(createCveCmd)
+	Cmd.AddCommand(subscribeCveResourceCmd)
+	Cmd.AddCommand(subscribeProductCmd)
+	Cmd.AddCommand(subscribeVendorCmd)
 }
