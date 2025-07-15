@@ -2,8 +2,6 @@ syntax = "proto3";
 
 package secra.v1;
 
-import "google/api/annotations.proto";
-
 option go_package = "gitlab.com/jacky850509/secra/api/gen/v1;secra_v1";
 
 message LoginRequest {
@@ -23,16 +21,10 @@ message LoginResponse {
 
 service UserService {
   rpc LocalLogin(LoginRequest) returns (LoginResponse) {
-    option (google.api.http) = {
-      post: "/v1/login"
-      body: "*"
-    };
+    // HTTP annotation removed
   }
 
   rpc OAuthLogin(OAuthLoginRequest) returns (LoginResponse) {
-    option (google.api.http) = {
-      post: "/v1/oauth/login"
-      body: "*"
-    };
+    // HTTP annotation removed
   }
 }

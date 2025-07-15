@@ -106,3 +106,22 @@ go run cmd/cli/secra.go resource subscribe-cve-resource \
 
 ```bash
 Subscription created: User=<user-uuid> CVEResources=[<resource-uuid>] Severity=high
+
+## NVD 匯入範例
+
+### NVD v1 最近資料
+```bash
+go run cmd/cli/secra.go import nvd v1 --recent=true
+```
+
+### NVD v1 指定時間區間
+
+```bash
+go run cmd/cli/secra.go import nvd v1 --start=2025-01-01 --end=2025-01-31
+```
+
+### NVD v2 匯入
+
+```bash
+go run cmd/cli/secra.go import nvd v2 --start=2025-01-01 --apikey=$$NVD_API_KEY
+```

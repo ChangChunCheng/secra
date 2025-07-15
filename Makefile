@@ -1,106 +1,77 @@
 SHELL := /bin/bash
 .SHELLFLAGS := -lc
-ENV_FILE := .env
 
-# 載入 gvm 指定版本路徑，確保 go 可用
-export PATH := $(HOME)/.gvm/gos/go1.23.8/bin:$(PATH)
+# ----------------------------------------------------------------------------
+# Load environment file if exists
+# ----------------------------------------------------------------------------
+ENV_FILE := .env
 ifneq ("$(wildcard $(ENV_FILE))","")
 	include $(ENV_FILE)
-	export
 endif
 
-# 保留 GOPATH bin
-export PATH:=$(HOME)/.gvm/gos/go1.23.8/bin:$(PATH)
-export PATH:=$(PATH):$(shell go env GOPATH)/bin
+# ----------------------------------------------------------------------------
+# Go version enforcement via gvm
+# ----------------------------------------------------------------------------
+GO_REQUIRED := go1.24.5
+GO_CURRENT := $(shell go version | awk '{print $$3}')
+ifneq ($(GO_CURRENT),$(GO_REQUIRED))
+	$(warning Current Go version is $(GO_CURRENT); switching to $(GO_REQUIRED) via gvm)
+	# Load gvm and use required Go
+	# Requires gvm installed and configured
+	-@source ~/.gvm/scripts/gvm && gvm use $(GO_REQUIRED)
+endif
 
+# ----------------------------------------------------------------------------
+# Build metadata (injected via -ldflags)
+# ----------------------------------------------------------------------------
+VERSION   ?= 0.1.0
+COMMIT    := $(shell git rev-parse --short HEAD)
+BUILD_DATE:= $(shell date -u +%Y-%m-%d)
+LDFLAGS   := -X 'main.Version=$(VERSION)' \
+             -X 'main.Commit=$(COMMIT)' \
+             -X 'main.BuildDate=$(BUILD_DATE)'
 
-# ============================================================================
-# Metadata
-# ============================================================================
+# ----------------------------------------------------------------------------
+# Protobuf code generation
+# ----------------------------------------------------------------------------
+BUF_TEMPLATE := api/buf.gen.yaml
+PROTO_DIR    := api/proto/v1
+GEN_OUT      := api/gen/v1
 
-VERSION ?= 0.1.0
-COMMIT  := $(shell git rev-parse --short HEAD)
-DATE    := $(shell date -u +%Y-%m-%d)
+.PHONY: buf-gen
+buf-gen:
+	cd api && buf generate --template $(notdir $(BUF_TEMPLATE))
 
-LDFLAGS := -X 'main.Version=$(VERSION)' \
-           -X 'main.Commit=$(COMMIT)' \
-           -X 'main.BuildDate=$(DATE)'
+.PHONY: proto-gen
+proto-gen: buf-gen
+	@echo "Generating Go code with protoc"
+	@mkdir -p $(GEN_OUT)
+	protoc \
+	  -I$(PROTO_DIR) \
+	  -I$(shell go list -m -f '{{ .Dir }}/api/proto/v1' gitlab.com/jacky850509/secra) \
+	  --go_out=$(GEN_OUT) --go_opt=paths=source_relative \
+	  --go-grpc_out=$(GEN_OUT) --go-grpc_opt=paths=source_relative \
+	  $(PROTO_DIR)/*.proto
 
-# ============================================================================
-# Paths and output
-# ============================================================================
-
-CLI_BIN := secra-cli
-GRPC_BIN := secra-grpc
-HTTP_BIN := secra-api
-
-# ============================================================================
-# Environment
-# ============================================================================
-YEAR ?= $(shell date -u +%Y)
-NVD_API_KEY ?= 1234567890
-START ?= $$(date -u -d '1440 hours ago' +%Y-%m-%d)
-END ?= $$(date -u -d '720 hours ago' +%Y-%m-%d)
-
-# ============================================================================
-# Proto
-# ============================================================================
-
-# install-proto-tools:
-# 	@echo "Installing protoc plugins..."
-# 	go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
-# 	go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
-# 	go install github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-grpc-gateway@latest
-# 	go install github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-openapiv2@latest
-# 	@echo "✅ All protoc plugins installed."
-
-# PROTO_DIR=api/proto/v1
-# OUT_DIR=api/gen/v1
-# PROTO_SRCS=$(shell find $(PROTO_DIR) -name "*.proto")
-# PROTO_GOOGLE=$(shell go list -m -f '{{ .Dir }}' github.com/grpc-ecosystem/grpc-gateway/v2)
-# PROTOBUF_GOOGLE=$(shell go list -f '{{ .Dir }}' google.golang.org/protobuf)
-# GRPC_GATEWAY_GOOGLE=$(shell go list -f '{{ .Dir }}' github.com/grpc-ecosystem/grpc-gateway/v2)
-# proto: $(PROTO_SRCS)
-# 	@mkdir -p $(OUT_DIR)
-# 	protoc \
-# 		-I$(PROTO_DIR) \
-# 		-I$(GRPC_GATEWAY_GOOGLE)/../.. \
-# 		-I$(PROTOBUF_GOOGLE)/.. \
-# 		--go_out=$(OUT_DIR) --go_opt=paths=source_relative \
-# 		--go-grpc_out=$(OUT_DIR) --go-grpc_opt=paths=source_relative \
-# 		--grpc-gateway_out=$(OUT_DIR) --grpc-gateway_opt=paths=source_relative \
-# 		$(PROTO_SRCS)
-
-
-# swagger: $(PROTO_SRCS)
-# 	@mkdir -p $(OUT_DIR)
-# 	protoc \
-# 		-I$(PROTO_DIR) \
-# 		-I$(PROTO_GOOGLE)/../.. \
-# 		-I$(PROTOBUF_GOOGLE)/.. \
-# 		--openapiv2_out=$(OUT_DIR) --openapiv2_opt=logtostderr=true \
-# 		$(PROTO_SRCS)
-# 	@echo "✅ Swagger/OpenAPI generated."
-
-# ============================================================================
-# Build with metadata
-# ============================================================================
-
+# ----------------------------------------------------------------------------
+# Build commands
+# ----------------------------------------------------------------------------
+.PHONY: build-cli build-grpc build-http build
 build-cli:
-	go build -ldflags "$(LDFLAGS)" -o bin/$(CLI_BIN) ./cmd/cli
+	go build -ldflags "$(LDFLAGS)" -o bin/secra-cli ./cmd/cli
 
 build-grpc:
-	go build -ldflags "$(LDFLAGS)" -o bin/$(GRPC_BIN) ./cmd/server/grpc_server
+	go build -ldflags "$(LDFLAGS)" -o bin/secra-grpc ./cmd/server/grpc_server
 
 build-http:
-	go build -ldflags "$(LDFLAGS)" -o bin/$(HTTP_BIN) ./cmd/server/http_server
+	go build -ldflags "$(LDFLAGS)" -o bin/secra-api ./cmd/server/http_server
 
 build: build-cli build-grpc build-http
 
-# ============================================================================
-# Run
-# ============================================================================
-
+# ----------------------------------------------------------------------------
+# Run commands
+# ----------------------------------------------------------------------------
+.PHONY: run-cli run-grpc run-http
 run-cli:
 	go run ./cmd/cli
 
@@ -110,12 +81,12 @@ run-grpc:
 run-http:
 	go run ./cmd/server/http_server
 
-# ============================================================================
-# Docker
-# ============================================================================
-
+# ----------------------------------------------------------------------------
+# Docker utilities
+# ----------------------------------------------------------------------------
+.PHONY: docker-build up down logs dbshell
 docker-build:
-	docker build --build-arg VERSION=$(VERSION) --build-arg COMMIT=$(COMMIT) --build-arg DATE=$(DATE) -t secra .
+	docker build --build-arg VERSION=$(VERSION) --build-arg COMMIT=$(COMMIT) --build-arg DATE=$(BUILD_DATE) -t secra .
 
 up:
 	docker compose up -d
@@ -129,40 +100,25 @@ logs:
 dbshell:
 	docker exec -it secra-db psql -U postgres -d secra
 
-# ============================================================================
-# Dev utils
-# ============================================================================
-
-mod-tidy:
-	GOFLAGS=-mod=mod go mod tidy
-
+# ----------------------------------------------------------------------------
+# Development utilities
+# ----------------------------------------------------------------------------
+.PHONY: fmt lint mod-tidy
 fmt:
 	go fmt ./...
 
 lint:
 	golangci-lint run
 
-# ============================================================================
-# Migrations & Import
-# ============================================================================
+mod-tidy:
+	GOFLAGS=-mod=mod go mod tidy
 
+# ----------------------------------------------------------------------------
+# Migrations
+# ----------------------------------------------------------------------------
+.PHONY: migrate migrate-status
 migrate:
 	go run cmd/cli/secra.go migrate up
 
 migrate-status:
 	go run cmd/cli/secra.go migrate status
-
-import-nvd-v1-recent:
-	go run cmd/cli/secra.go import nvd v1 --recent=true
-
-import-nvd-v1:
-	go run cmd/cli/secra.go import nvd v1 --recent=true --modified=true --year=$(YEAR)
-
-# 匯入 NVD v2 (新版) → 需要傳入起始日（YYYY-MM-DD），結束日可選
-import-nvd-v2:
-ifneq ($(strip $(START)),)
-	go run cmd/cli/secra.go import nvd v2 --start=$(START) $(if $(END),--end=$(END)) $(if $(APIKEY),--apikey=$(APIKEY))
-else
-	@echo "❌ 必須指定 START 日期 (YYYY-MM-DD)。例如：make import-nvd-v2 START=2025-01-01 END=2025-01-31"
-	@exit 1
-endif
