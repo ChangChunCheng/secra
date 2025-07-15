@@ -9,22 +9,45 @@ message LoginRequest {
   string password = 2;
 }
 
-message OAuthLoginRequest {
-  string provider = 1;
-  string access_token = 2;
+message RegisterRequest {
+  string username = 1;
+  string password = 2;
+  string email    = 3;
+}
+
+message TokenRequest {
+  string token = 1;
+}
+
+message UpdateProfileRequest {
+  string token    = 1;
+  string email    = 2;
+  string fullName = 3;
+}
+
+message UserProfile {
+  string id       = 1;
+  string username = 2;
+  string email    = 3;
+  string fullName = 4;
 }
 
 message LoginResponse {
-  string token = 1;
+  string token     = 1;
   string expire_at = 2;
 }
 
-service UserService {
-  rpc LocalLogin(LoginRequest) returns (LoginResponse) {
-    // HTTP annotation removed
-  }
+message RegisterResponse {
+  string message = 1;
+}
 
-  rpc OAuthLogin(OAuthLoginRequest) returns (LoginResponse) {
-    // HTTP annotation removed
-  }
+service UserService {
+  // 使用者註冊
+  rpc Register(RegisterRequest) returns (RegisterResponse);
+  // 使用者登入
+  rpc Login(LoginRequest) returns (LoginResponse);
+  // 取得個人資料
+  rpc GetProfile(TokenRequest) returns (UserProfile);
+  // 更新個人資料
+  rpc UpdateProfile(UpdateProfileRequest) returns (UserProfile);
 }

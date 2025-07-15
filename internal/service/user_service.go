@@ -2,9 +2,13 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"time"
 
+	"github.com/golang-jwt/jwt/v4"
 	"github.com/google/uuid"
+	"gitlab.com/jacky850509/secra/internal/config"
 	"gitlab.com/jacky850509/secra/internal/model"
 	"gitlab.com/jacky850509/secra/internal/repo"
 )
@@ -12,6 +16,12 @@ import (
 // UserService encapsulates user registration and OAuth login logic.
 type UserService struct {
 	repo *repo.UserRepository
+}
+
+type UserJWTSecret struct {
+	id       uuid.UUID
+	username string
+	role     string
 }
 
 // NewUserService creates a new UserService.
@@ -68,16 +78,41 @@ func (s *UserService) OAuthLogin(ctx context.Context, provider, providerUserID, 
 	return newUser, nil
 }
 
-func (s *UserService) Login(ctx context.Context, username, password string) (string, error) {
+func (s *UserService) Login(ctx context.Context, username, password string) (string, int64, error) {
 	// 驗證使用者
 	user, err := s.repo.GetUserByUsername(ctx, username)
 	if err != nil {
-		return "", err
+		return "", 0, err
 	}
 	if user.PasswordHash != password {
-		return "", errors.New("invalid credentials")
+		return "", 0, errors.New("invalid credentials")
 	}
-	// 簽發 JWT（使用簡易範例，實際應使用安全金鑰和過期時間）
-	token := uuid.New().String()
-	return token, nil
+
+	sub, err := json.Marshal(UserJWTSecret{
+		id:       user.ID,
+		username: user.Username,
+		role:     user.Role,
+	})
+	if err != nil {
+		return "", 0, err
+	}
+	token, expireAt, err := s.generateJWT(sub)
+	return token, expireAt, err
+}
+
+// generateJWT 建立 JWT 並回傳 token 及過期 Unix 時間
+func (s *UserService) generateJWT(sub []byte) (string, int64, error) {
+
+	expireAt := time.Now().Add(config.Load().JWTConfig.Expiry).Unix()
+	claims := jwt.RegisteredClaims{
+		Subject:   string(sub),
+		ExpiresAt: jwt.NewNumericDate(time.Unix(expireAt, 0)),
+		IssuedAt:  jwt.NewNumericDate(time.Now()),
+	}
+	tokenObj := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	token, err := tokenObj.SignedString([]byte(config.Load().JWTConfig.Secret))
+	if err != nil {
+		return "", 0, err
+	}
+	return token, expireAt, nil
 }
