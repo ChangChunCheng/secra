@@ -9,7 +9,7 @@ import (
 type CVE struct {
 	bun.BaseModel `bun:"table:cves"`
 
-	ID          string    `bun:",pk,notnull"`
+	ID          string    `bun:",pk,notnull,nullzero,default:gen_random_uuid()" json:"id"`
 	SourceID    string    `bun:",notnull"`
 	SourceUID   string    `bun:",notnull"`
 	Title       string    `bun:",notnull"`

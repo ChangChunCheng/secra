@@ -1,0 +1,45 @@
+syntax = "proto3";
+
+package v1;
+option go_package = "gitlab.com/jacky850509/secra/api/gen/v1;v1";
+
+// SubscriptionService 定義訂閱功能的 gRPC 介面
+service SubscriptionService {
+  // 建立訂閱
+  rpc CreateSubscription(CreateSubscriptionRequest) returns (CreateSubscriptionResponse);
+  // 列出使用者所有訂閱
+  rpc ListSubscriptions(ListSubscriptionsRequest) returns (ListSubscriptionsResponse);
+}
+
+message SubscriptionTarget {
+  // 目標類型: CVE來源=“cve_source”，廠商=“vendor”，產品=“product”
+  string target_type = 1;
+  // 目標識別 ID (UUID 格式)
+  string target_id = 2;
+}
+
+message Subscription {
+  string id = 1;
+  string user_id = 2;
+  repeated SubscriptionTarget targets = 3;
+  string severity_threshold = 4;
+  string created_at = 5;
+}
+
+message CreateSubscriptionRequest {
+  string user_id = 1;
+  repeated SubscriptionTarget targets = 2;
+  string severity_threshold = 3;
+}
+
+message CreateSubscriptionResponse {
+  Subscription subscription = 1;
+}
+
+message ListSubscriptionsRequest {
+  string user_id = 1;
+}
+
+message ListSubscriptionsResponse {
+  repeated Subscription subscriptions = 1;
+}

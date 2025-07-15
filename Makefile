@@ -1,10 +1,17 @@
+SHELL := /bin/bash
+.SHELLFLAGS := -lc
 ENV_FILE := .env
+
+# 載入 gvm 指定版本路徑，確保 go 可用
+export PATH := $(HOME)/.gvm/gos/go1.23.8/bin:$(PATH)
 ifneq ("$(wildcard $(ENV_FILE))","")
 	include $(ENV_FILE)
 	export
 endif
 
-export PATH=$PATH:$(go env GOPATH)/bin
+# 保留 GOPATH bin
+export PATH:=$(HOME)/.gvm/gos/go1.23.8/bin:$(PATH)
+export PATH:=$(PATH):$(shell go env GOPATH)/bin
 
 
 # ============================================================================
@@ -32,48 +39,48 @@ HTTP_BIN := secra-api
 # ============================================================================
 YEAR ?= $(shell date -u +%Y)
 NVD_API_KEY ?= 1234567890
-START ?= $$(date -u -d '72 hours ago' +%Y-%m-%d)
-END ?= $$(date -u -d '48 hours ago' +%Y-%m-%d)
+START ?= $$(date -u -d '1440 hours ago' +%Y-%m-%d)
+END ?= $$(date -u -d '720 hours ago' +%Y-%m-%d)
 
 # ============================================================================
 # Proto
 # ============================================================================
 
-install-proto-tools:
-	@echo "Installing protoc plugins..."
-	go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
-	go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
-	go install github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-grpc-gateway@latest
-	go install github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-openapiv2@latest
-	@echo "✅ All protoc plugins installed."
+# install-proto-tools:
+# 	@echo "Installing protoc plugins..."
+# 	go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
+# 	go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
+# 	go install github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-grpc-gateway@latest
+# 	go install github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-openapiv2@latest
+# 	@echo "✅ All protoc plugins installed."
 
-PROTO_DIR=api/proto/v1
-OUT_DIR=api/gen/v1
-PROTO_SRCS=$(shell find $(PROTO_DIR) -name "*.proto")
-PROTO_GOOGLE=$(shell go list -m -f '{{ .Dir }}' github.com/grpc-ecosystem/grpc-gateway/v2)
-PROTOBUF_GOOGLE=$(shell go list -f '{{ .Dir }}' google.golang.org/protobuf)
-GRPC_GATEWAY_GOOGLE=$(shell go list -f '{{ .Dir }}' github.com/grpc-ecosystem/grpc-gateway/v2)
-proto: $(PROTO_SRCS)
-	@mkdir -p $(OUT_DIR)
-	protoc \
-		-I$(PROTO_DIR) \
-		-I$(GRPC_GATEWAY_GOOGLE)/../.. \
-		-I$(PROTOBUF_GOOGLE)/.. \
-		--go_out=$(OUT_DIR) --go_opt=paths=source_relative \
-		--go-grpc_out=$(OUT_DIR) --go-grpc_opt=paths=source_relative \
-		--grpc-gateway_out=$(OUT_DIR) --grpc-gateway_opt=paths=source_relative \
-		$(PROTO_SRCS)
+# PROTO_DIR=api/proto/v1
+# OUT_DIR=api/gen/v1
+# PROTO_SRCS=$(shell find $(PROTO_DIR) -name "*.proto")
+# PROTO_GOOGLE=$(shell go list -m -f '{{ .Dir }}' github.com/grpc-ecosystem/grpc-gateway/v2)
+# PROTOBUF_GOOGLE=$(shell go list -f '{{ .Dir }}' google.golang.org/protobuf)
+# GRPC_GATEWAY_GOOGLE=$(shell go list -f '{{ .Dir }}' github.com/grpc-ecosystem/grpc-gateway/v2)
+# proto: $(PROTO_SRCS)
+# 	@mkdir -p $(OUT_DIR)
+# 	protoc \
+# 		-I$(PROTO_DIR) \
+# 		-I$(GRPC_GATEWAY_GOOGLE)/../.. \
+# 		-I$(PROTOBUF_GOOGLE)/.. \
+# 		--go_out=$(OUT_DIR) --go_opt=paths=source_relative \
+# 		--go-grpc_out=$(OUT_DIR) --go-grpc_opt=paths=source_relative \
+# 		--grpc-gateway_out=$(OUT_DIR) --grpc-gateway_opt=paths=source_relative \
+# 		$(PROTO_SRCS)
 
 
-swagger: $(PROTO_SRCS)
-	@mkdir -p $(OUT_DIR)
-	protoc \
-		-I$(PROTO_DIR) \
-		-I$(PROTO_GOOGLE)/../.. \
-		-I$(PROTOBUF_GOOGLE)/.. \
-		--openapiv2_out=$(OUT_DIR) --openapiv2_opt=logtostderr=true \
-		$(PROTO_SRCS)
-	@echo "✅ Swagger/OpenAPI generated."
+# swagger: $(PROTO_SRCS)
+# 	@mkdir -p $(OUT_DIR)
+# 	protoc \
+# 		-I$(PROTO_DIR) \
+# 		-I$(PROTO_GOOGLE)/../.. \
+# 		-I$(PROTOBUF_GOOGLE)/.. \
+# 		--openapiv2_out=$(OUT_DIR) --openapiv2_opt=logtostderr=true \
+# 		$(PROTO_SRCS)
+# 	@echo "✅ Swagger/OpenAPI generated."
 
 # ============================================================================
 # Build with metadata

@@ -14,7 +14,7 @@ import (
 func NewMigrator(db *bun.DB) *migrate.Migrator {
 	migrations := migrate.NewMigrations()
 
-	log.Println("📦 Discovering migrations from: migrations/v0")
+	log.Println("📦 Discovering migrations from: migrations/v2")
 	if err := migrations.Discover(os.DirFS("migrations/v0")); err != nil {
 		log.Fatalf("❌ failed to discover migrations: %v", err)
 	}

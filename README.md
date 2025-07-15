@@ -41,3 +41,29 @@ secra/
 ├── data/            # 原始 JSON.gz 儲存路徑
 └── README.md
 ```
+
+## 使用者註冊與 OAuth2 登入
+
+1. 重新產生 gRPC Stub  
+   ```bash
+   protoc --go_out=api/gen --go-grpc_out=api/gen api/proto/v1/user.proto
+   ```
+
+2. 啟動 gRPC 伺服器  
+   ```bash
+   go run cmd/server/grpc_server/main.go
+   ```
+
+3. 測試 REST 端點  
+   - 系統註冊  
+     ```bash
+     curl -X POST http://localhost:8080/v1/users/register \
+       -H "Content-Type: application/json" \
+       -d '{"username":"alice","email":"alice@example.com","password_hash":"<hashed>"}'
+     ```  
+   - OAuth2 登入  
+     ```bash
+     curl -X POST http://localhost:8080/v1/oauth/login \
+       -H "Content-Type: application/json" \
+       -d '{"provider":"github","provider_user_id":"12345","email":"alice@example.com"}'
+     ```  
