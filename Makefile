@@ -58,13 +58,13 @@ proto-gen: buf-gen
 # ----------------------------------------------------------------------------
 .PHONY: build-cli build-grpc build-http build
 build-cli:
-	go build -ldflags "$(LDFLAGS)" -o bin/secra-cli ./cmd/cli
+	go build -ldflags "$(LDFLAGS)" -o bin/secra-cli ./cmd/cli/secra.go
 
 build-grpc:
-	go build -ldflags "$(LDFLAGS)" -o bin/secra-grpc ./cmd/server/grpc_server
+	go build -ldflags "$(LDFLAGS)" -o bin/secra-grpc ./cmd/server/grpc.go
 
 build-http:
-	go build -ldflags "$(LDFLAGS)" -o bin/secra-api ./cmd/server/http_server
+	go build -ldflags "$(LDFLAGS)" -o bin/secra-api ./cmd/server/http.go
 
 build: build-cli build-grpc build-http
 
@@ -73,10 +73,10 @@ build: build-cli build-grpc build-http
 # ----------------------------------------------------------------------------
 .PHONY: run-cli run-grpc run-http
 run-cli:
-	go run ./cmd/cli
+	go run ./cmd/cli/secra.go
 
 run-grpc:
-	go run ./cmd/server/grpc_server
+	go run ./cmd/server/grpc.go
 
 run-http:
 	go run ./cmd/server/http_server

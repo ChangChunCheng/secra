@@ -1,11 +1,12 @@
+# secra CLI 操作說明與範例
 
-# CLI 子功能測試指令範例
-
-以下示範如何使用各子指令進行操作，需以 [`go run cmd/cli/secra.go`](cmd/cli/secra.go:1) 作為前綴執行，假設使用 gvm 安裝的 Go 執行環境已正確設定。
+以下示範如何使用各子指令進行操作，需以 `go run cmd/cli/secra.go` 作為前綴執行，假設使用 gvm 安裝的 Go 執行環境已正確設定。
 
 ---
 
-## 1. 使用者註冊 (user register)
+## 1. 使用者 (User) 子指令
+
+### 1.1 註冊 (register)
 
 ```bash
 go run cmd/cli/secra.go user register \
@@ -14,13 +15,13 @@ go run cmd/cli/secra.go user register \
   --password "securepassword"
 ```
 
-輸出範例：
+**輸出範例：**
 
 ```bash
 Registered user: alice (id=<user-uuid>)
 ```
 
-## 2. 使用者登入並取得 JWT Token (user login)
+### 1.2 登入 (login)
 
 ```bash
 go run cmd/cli/secra.go user login \
@@ -28,333 +29,231 @@ go run cmd/cli/secra.go user login \
   --password "securepassword"
 ```
 
-輸出範例：
+**輸出範例：**
 
 ```bash
 75f05a92-db6e-4f5d-91b9-a25333495f89
 ```
 
-## 3. 取得個人資料 (user get-profile)
+### 1.3 取得個人資料 (get_profile)
 
 ```bash
-go run cmd/cli/secra.go user get-profile \
+go run cmd/cli/secra.go user get_profile \
   --token "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
 ```
 
-輸出範例：
+**輸出範例：**
 
 ```bash
 ID: 123e4567-e89b-12d3-a456-426614174000
 Username: alice
 Email: alice@example.com
+DisplayName: Alice Chen
 ```
 
-## 4. 更新使用者個人資料 (user update-profile)
+### 1.4 更新個人資料 (update_profile)
 
 ```bash
-go run cmd/cli/secra.go user update-profile \
+go run cmd/cli/secra.go user update_profile \
   --token "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." \
-  --email "new@example.com"
+  --email new@example.com \
+  --display-name "Alice C."
 ```
 
-輸出範例：
+**輸出範例：**
 
 ```bash
-Updated Profile:
-ID: 123e4567-e89b-12d3-a456-426614174000
-Username: alice
-Email: new@example.com
+Updated profile: alice
 ```
 
 ---
 
-## 5. 管理 CVE Source (resource cve-source)
+## 2. 匯入 (Import) 子指令
 
-### 5.1 新增 CVE Source
+### 2.1 NVD 匯入 (nvd)
 
 ```bash
-go run cmd/cli/secra.go resource cve-source create \
-  --name "ttt" \
-  --type "VendorX Source" \
-  --url "https://vendorx.com/feed" \
-  --description "https://vendorx.com/feed/desc"
+go run cmd/cli/secra.go import nvd \
+  --source v2 \
+  --since 2025-01-01
 ```
 
-輸出範例：
+**輸出範例：**
 
 ```bash
-Created CVE source: ID=e80e0407-a660-4e19-a83a-bb2070707ccc Name=ttt URL=https://vendorx.com/feed
-```
-
-### 5.2 取得 CVE Source (resource cve-source get)
-
-```bash
-go run cmd/cli/secra.go resource cve-source get \
-  --id "e80e0407-a660-4e19-a83a-bb2070707ccc"
-```
-
-輸出範例：
-
-```bash
-ID=e80e0407-a660-4e19-a83a-bb2070707ccc Name=ttt Type=VendorX Source URL=https://vendorx.com/feed Description=https://vendorx.com/feed/desc
-```
-
-### 5.3 列出 CVE Sources (resource cve-source list)
-
-```bash
-go run cmd/cli/secra.go resource cve-source list \
-  --limit 5 \
-  --offset 0
-```
-
-輸出範例：
-
-```bash
-ID=uuid1 Name=SourceA
-ID=uuid2 Name=SourceB
-```
-
-### 5.4 更新 CVE Source (resource cve-source update)
-
-```bash
-go run cmd/cli/secra.go resource cve-source update \
-  --id "e80e0407-a660-4e19-a83a-bb2070707ccc" \
-  --name "newName" \
-  --url "https://new.example.com"
-```
-
-輸出範例：
-
-```bash
-Updated CVE source: ID=e80e0407-a660-4e19-a83a-bb2070707ccc Name=newName URL=https://new.example.com
-```
-
-### 5.5 刪除 CVE Source (resource cve-source delete)
-
-```bash
-go run cmd/cli/secra.go resource cve-source delete \
-  --id "e80e0407-a660-4e19-a83a-bb2070707ccc"
-```
-
-輸出範例：
-
-```bash
-Deleted CVE source: ID=e80e0407-a660-4e19-a83a-bb2070707ccc
+Imported 120 CVEs from NVD v2 since 2025-01-01
 ```
 
 ---
 
-## 6. 管理 Vendor (resource vendor)
+## 3. 資料庫遷移 (Migrate) 子指令
 
-### 6.1 新增 Vendor
+### 3.1 顯示遷移狀態 (status)
 
 ```bash
-go run cmd/cli/secra.go resource vendor create \
-  --name "VendorX"
+go run cmd/cli/secra.go migrate status
 ```
 
-輸出範例：
+**輸出範例：**
 
 ```bash
-Created Vendor: ID=<vendor-uuid> Name=VendorX
+Pending migrations:
+  - 20230101_add_new_table.up.sql
+Applied migrations:
+  - 20230101_initial_schema.up.sql
 ```
 
-### 6.2 取得 Vendor (resource vendor get)
+### 3.2 執行遷移 (up)
 
 ```bash
-go run cmd/cli/secra.go resource vendor get \
-  --id "dc791f4c-f0f3-4ff1-89e3-a54dc592446a"
+go run cmd/cli/secra.go migrate up
 ```
 
-輸出範例：
+**輸出範例：**
 
 ```bash
-ID=<vendor-uuid> Name=VendorX
-```
-
-### 6.3 列出 Vendors (resource vendor list)
-
-```bash
-go run cmd/cli/secra.go resource vendor list \
-  --limit 5 \
-  --offset 0
-```
-
-輸出範例：
-
-```bash
-ID=uuid1 Name=VendorA
-ID=uuid2 Name=VendorB
-```
-
-### 6.4 更新 Vendor (resource vendor update)
-
-```bash
-go run cmd/cli/secra.go resource vendor update \
-  --id "<vendor-uuid>" \
-  --name "NewVendorName"
-```
-
-輸出範例：
-
-```bash
-Updated Vendor: ID=<vendor-uuid> Name=NewVendorName
-```
-
-### 6.5 刪除 Vendor (resource vendor delete)
-
-```bash
-go run cmd/cli/secra.go resource vendor delete \
-  --id "dc791f4c-f0f3-4ff1-89e3-a54dc592446a"
-```
-
-輸出範例：
-
-```bash
-Deleted Vendor: ID=<vendor-uuid>
+Applying migration: 20230101_add_new_table.up.sql
+Migration completed.
 ```
 
 ---
 
-## 7. 管理 Product (resource product)
+## 4. 資源 (Resource) 子指令
 
-### 7.1 新增 Product
+### 4.1 CVE (cve)
 
-```bash
-go run cmd/cli/secra.go resource product create \
-  --name "ProductX"
-```
+- **列出 (list)**
 
-輸出範例：
+  ```bash
+  go run cmd/cli/secra.go resource cve list
+  ```
 
-```bash
-Created Product: ID=<product-uuid> Name=ProductX
-```
+- **取得 (get)**
 
-### 7.2 取得 Product (resource product get)
+  ```bash
+  go run cmd/cli/secra.go resource cve get \
+    --id CVE-2025-1234
+  ```
 
-```bash
-go run cmd/cli/secra.go resource product get \
-  --id "<product-uuid>"
-```
+- **新增 (create)**
 
-輸出範例：
+  ```bash
+  go run cmd/cli/secra.go resource cve create \
+    --id CVE-2025-9999 \
+    --description "範例 CVE"
+  ```
 
-```bash
-ID=<product-uuid> Name=ProductX
-```
+- **更新 (update)**
 
-### 7.3 列出 Products (resource product list)
+  ```bash
+  go run cmd/cli/secra.go resource cve update \
+    --id CVE-2025-9999 \
+    --description "更新後描述"
+  ```
 
-```bash
-go run cmd/cli/secra.go resource product list \
-  --limit 5 \
-  --offset 0
-```
+- **刪除 (delete)**
 
-輸出範例：
+  ```bash
+  go run cmd/cli/secra.go resource cve delete \
+    --id CVE-2025-9999
+  ```
 
-```bash
-ID=uuid1 Name=ProductA
-ID=uuid2 Name=ProductB
-```
+### 4.2 CVE Source (cvesource)
 
-### 7.4 更新 Product (resource product update)
+- **列出 (list)**
 
-```bash
-go run cmd/cli/secra.go resource product update \
-  --id "<product-uuid>" \
-  --name "NewProductName"
-```
+  ```bash
+  go run cmd/cli/secra.go resource cvesource list
+  ```
 
-輸出範例：
+- **取得 (get)**
 
-```bash
-Updated Product: ID=<product-uuid> Name=NewProductName
-```
+  ```bash
+  go run cmd/cli/secra.go resource cvesource get \
+    --id nvd-v2
+  ```
 
-### 7.5 刪除 Product (resource product delete)
+- **新增 (create)**
 
-```bash
-go run cmd/cli/secra.go resource product delete \
-  --id "<product-uuid>"
-```
+  ```bash
+  go run cmd/cli/secra.go resource cvesource create \
+    --id nvd-v3 \
+    --url https://example.com/nvd.json
+  ```
 
-輸出範例：
+- **更新 (update)**
 
-```bash
-Deleted Product: ID=<product-uuid>
-```
+  ```bash
+  go run cmd/cli/secra.go resource cvesource update \
+    --id nvd-v3 \
+    --url https://example.com/nvd-updated.json
+  ```
 
----
+- **刪除 (delete)**
 
-## 8. 訂閱功能 (resource subscription)
+  ```bash
+  go run cmd/cli/secra.go resource cvesource delete \
+    --id nvd-v3
+  ```
 
-以下示例使用 `resource subscription` 子模組，可以對 Vendor、Product、CVE Source 進行訂閱。
+### 4.3 產品 (product)
 
-### 8.1 訂閱 Vendor
+- **列出 (list)**
 
-```bash
-go run cmd/cli/secra.go resource subscription vendor \
-  --user-id "5787e712-6e39-49b2-9947-43b82bc860e1" \
-  --vendor-id "0e029aaa-d339-413a-af9e-f1bb26c9a1f8" \
-  --severity "medium"
-```
+  ```bash
+  go run cmd/cli/secra.go resource product list
+  ```
 
-輸出範例：
+- **取得 (get)**
 
-```bash
-Subscription created: User=<user-uuid> Vendors=[<vendor-uuid>] Severity=medium
-```
+  ```bash
+  go run cmd/cli/secra.go resource product get \
+    --id prod-001
+  ```
 
-### 8.2 訂閱 Product
+- **新增 (create)**
 
-```bash
-go run cmd/cli/secra.go resource subscription product \
-  --user-id "5787e712-6e39-49b2-9947-43b82bc860e1" \
-  --product-id "63637e30-0c91-419c-bd46-ad68650dacf9" \
-  --severity "low"
-```
+  ```bash
+  go run cmd/cli/secra.go resource product create \
+    --id prod-002 \
+    --name "新產品"
+  ```
 
-輸出範例：
+- **更新 (update)**
 
-```bash
-Subscription created: User=<user-uuid> Products=[<product-uuid>] Severity=low
-```
+  ```bash
+  go run cmd/cli/secra.go resource product update \
+    --id prod-002 \
+    --name "更新後產品"
+  ```
 
-### 8.3 訂閱 CVE Source
+- **刪除 (delete)**
 
-```bash
-go run cmd/cli/secra.go resource subscription cve-source \
-  --user-id "5787e712-6e39-49b2-9947-43b82bc860e1" \
-  --resource-id "bff832d2-002e-41b9-988f-90f930277a58" \
-  --severity "high"
-```
+  ```bash
+  go run cmd/cli/secra.go resource product delete \
+    --id prod-002
+  ```
 
-輸出範例：
+### 4.4 訂閱 (subscription)
 
-```bash
-Subscription created: User=<user-uuid> CVEResources=[<resource-uuid>] Severity=high
-```
+- **列出 (list)**
 
----
+  ```bash
+  go run cmd/cli/secra.go resource subscription list
+  ```
 
-## 9. NVD 匯入範例
+- **建立 (create)**
 
-### 9.1 NVD v1 最近資料
+  ```bash
+  go run cmd/cli/secra.go resource subscription create \
+    --source-id nvd-v2 \
+    --target-id prod-001 \
+    --type product
+  ```
 
-```bash
-go run cmd/cli/secra.go import nvd v1 --recent=true
-```
+- **刪除 (delete)**
 
-### 9.2 NVD v1 指定時間區間
-
-```bash
-go run cmd/cli/secra.go import nvd v1 --start=2025-01-01 --end=2025-01-31
-```
-
-### 9.3 NVD v2 匯入
-
-```bash
-go run cmd/cli/secra.go import nvd v2 --start=2025-01-01 --apikey=$$NVD_API_KEY
-```
+  ```bash
+  go run cmd/cli/secra.go resource subscription delete \
+    --id sub-123
+  ```
