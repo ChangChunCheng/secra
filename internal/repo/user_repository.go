@@ -67,3 +67,16 @@ func (r *UserRepository) UpdateEmail(ctx context.Context, id, email string) (*mo
 	}
 	return r.FindByID(ctx, id)
 }
+
+func (r *UserRepository) UpdateEmailAndPassword(ctx context.Context, userID, email, passwordHash string) (*model.User, error) {
+	user := &model.User{ID: uuid.MustParse(userID), Email: email, PasswordHash: passwordHash}
+	_, err := r.db.NewUpdate().
+		Model(user).
+		Column("email", "password_hash", "updated_at").
+		WherePK().
+		Exec(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return r.FindByID(ctx, userID)
+}

@@ -19,6 +19,7 @@ type UserServiceHandler struct {
 
 // Register is a stub. TODO: implement.
 func (h *UserServiceHandler) Register(ctx context.Context, req *secra_v1.RegisterRequest) (*secra_v1.RegisterResponse, error) {
+
 	// load config and initialize DB
 	cfg := config.Load()
 	db := storage.NewDB(cfg.PostgresDSN, false)
@@ -28,7 +29,7 @@ func (h *UserServiceHandler) Register(ctx context.Context, req *secra_v1.Registe
 	userSvc := service.NewUserService(userRepo)
 
 	// register user
-	_, err := userSvc.Register(ctx, req.Username, req.Email, req.Password)
+	_, err := userSvc.Register(ctx, req.Username, req.Email, req.Password, req.ConfirmPassword)
 	if err != nil {
 		return nil, err
 	}
@@ -89,6 +90,7 @@ func (h *UserServiceHandler) GetProfile(ctx context.Context, req *secra_v1.Token
 
 // UpdateProfile is a stub. TODO: implement.
 func (h *UserServiceHandler) UpdateProfile(ctx context.Context, req *secra_v1.UpdateProfileRequest) (*secra_v1.UserProfile, error) {
+
 	// load config and initialize DB
 	cfg := config.Load()
 	db := storage.NewDB(cfg.PostgresDSN, false)
@@ -97,8 +99,8 @@ func (h *UserServiceHandler) UpdateProfile(ctx context.Context, req *secra_v1.Up
 	userRepo := repo.NewUserRepository(db.DB)
 	userSvc := service.NewUserService(userRepo)
 
-	// update user profile (only email; fullName ignored)
-	usr, err := userSvc.UpdateProfile(ctx, req.Token, req.Email)
+	// update user profile, include password if provided
+	usr, err := userSvc.UpdateProfile(ctx, req.Token, req.Email, req.Password, req.ConfirmPassword)
 	if err != nil {
 		return nil, err
 	}

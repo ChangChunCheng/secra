@@ -18,4 +18,5 @@ func init() {
 	Cmd.AddCommand(registerCmd)
 	Cmd.AddCommand(loginCmd)
 	Cmd.AddCommand(updateProfileCmd)
+	Cmd.AddCommand(getProfileCmd)
 }

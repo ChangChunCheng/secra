@@ -19,7 +19,7 @@ type AppConfig struct {
 
 // JWTConfig holds JWT settings.
 type JWTConfig struct {
-	Secret string
+	Secret []byte
 	Expiry time.Duration
 }
 
@@ -32,7 +32,7 @@ func Load() *AppConfig {
 		NvdURLv1:    getenv("NVD_URL_V1", "https://nvd.nist.gov/feeds/json/cve/1.1/"),
 		NvdURLv2:    getenv("NVD_URL_V2", "https://services.nvd.nist.gov/rest/json/cves/2.0"),
 		JWTConfig: JWTConfig{
-			Secret: getenv("JWT_SECRET", "default_secret"),
+			Secret: []byte(getenv("JWT_SECRET", "default_secret")),
 			Expiry: 24 * time.Hour,
 		},
 	}

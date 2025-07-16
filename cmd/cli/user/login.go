@@ -4,13 +4,12 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"time"
 
 	"github.com/spf13/cobra"
+	secra_v1 "gitlab.com/jacky850509/secra/api/gen/v1"
 	"gitlab.com/jacky850509/secra/internal/config"
-	"gitlab.com/jacky850509/secra/internal/repo"
-	"gitlab.com/jacky850509/secra/internal/service"
-	"gitlab.com/jacky850509/secra/internal/storage"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 var loginCmd = &cobra.Command{
@@ -18,20 +17,29 @@ var loginCmd = &cobra.Command{
 	Short: "Authenticate user and return JWT token",
 	Run: func(cmd *cobra.Command, args []string) {
 		cfg := config.Load()
-		db := storage.NewDB(cfg.PostgresDSN, false)
-		userRepo := repo.NewUserRepository(db.DB)
-		svc := service.NewUserService(userRepo)
+		conn, err := grpc.NewClient(cfg.GRPCPort, grpc.WithTransportCredentials(insecure.NewCredentials()))
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "failed to connect to gRPC server: %v\n", err)
+			os.Exit(1)
+		}
+		defer conn.Close()
+
+		client := secra_v1.NewUserServiceClient(conn)
 
 		username, _ := cmd.Flags().GetString("username")
 		password, _ := cmd.Flags().GetString("password")
 
-		token, expireAt, err := svc.Login(context.Background(), username, password)
+		req := &secra_v1.LoginRequest{
+			Username: username,
+			Password: password,
+		}
+		res, err := client.Login(context.Background(), req)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "login failed: %v\n", err)
 			os.Exit(1)
 		}
-		t := time.Unix(expireAt, 0)
-		fmt.Println(token, t.Format("2006-01-02T15:04:05"))
+		// parse ExpireAt string to int64
+		fmt.Println(res.Token, res.ExpireAt)
 	},
 }
 

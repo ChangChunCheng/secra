@@ -1,3 +1,54 @@
+## User CLI via gRPC
+
+### Register  
+```
+secra user register \
+  --username alice \
+  --email alice@example.com \
+  --password secret  
+```
+輸出:  
+```
+Registered user: alice@example.com (message=Create Success)
+```
+
+### Login  
+```
+secra user login \
+  --username alice \
+  --password "secret"  
+```
+輸出:  
+```
+<JWT_TOKEN> 2025-07-15T18:17:00
+```
+
+### Get Profile  
+```
+secra user get-profile \
+  --token "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ7XCJpZFwiOlwiNTgyODYwYWYtNTkzYi00OGRmLWEzZjQtNDFmMzQxYWVmNGZkXCIsXCJ1c2VybmFtZVwiOlwiYWxpY2VcIixcInJvbGVcIjpcInVzZXJcIn0iLCJleHAiOjE3NTI3MjA0NDMsImlhdCI6MTc1MjYzNDA0M30.kTWpHR-FlqzQpqon39NYfjqomlnGSt9y7sREHXEWOZE" "<JWT_TOKEN>"
+```
+輸出:  
+```
+ID: <uuid>
+Username: alice
+Email: alice@example.com
+```
+
+### Update Profile  
+```
+secra user update-profile \
+  --token "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ7XCJpZFwiOlwiNTgyODYwYWYtNTkzYi00OGRmLWEzZjQtNDFmMzQxYWVmNGZkXCIsXCJ1c2VybmFtZVwiOlwiYWxpY2VcIixcInJvbGVcIjpcInVzZXJcIn0iLCJleHAiOjE3NTI3MjA0NDMsImlhdCI6MTc1MjYzNDA0M30.kTWpHR-FlqzQpqon39NYfjqomlnGSt9y7sREHXEWOZE" \
+  --email alice.new@example.com  
+```
+輸出:  
+```
+Updated Profile:
+ID: <uuid>
+Username: alice
+Email: alice.new@example.com
+```
+
 # CLI 子功能測試指令範例
 
 以下示範如何使用各子指令進行操作，需以 `go run cmd/cli/secra.go` 作為前綴執行，假設使用 gvm 安裝的 Go 執行環境已正確設定。

@@ -6,10 +6,10 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
+	secra_v1 "gitlab.com/jacky850509/secra/api/gen/v1"
 	"gitlab.com/jacky850509/secra/internal/config"
-	"gitlab.com/jacky850509/secra/internal/repo"
-	"gitlab.com/jacky850509/secra/internal/service"
-	"gitlab.com/jacky850509/secra/internal/storage"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 var updateProfileCmd = &cobra.Command{
@@ -17,27 +17,38 @@ var updateProfileCmd = &cobra.Command{
 	Short: "更新使用者個人資料 (目前僅支援更新 Email)",
 	Run: func(cmd *cobra.Command, args []string) {
 		cfg := config.Load()
-		db := storage.NewDB(cfg.PostgresDSN, false)
-		userRepo := repo.NewUserRepository(db.DB)
-		svc := service.NewUserService(userRepo)
+		conn, err := grpc.NewClient(cfg.GRPCPort, grpc.WithTransportCredentials(insecure.NewCredentials()))
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "failed to connect to gRPC server: %v\n", err)
+			os.Exit(1)
+		}
+		defer conn.Close()
+
+		client := secra_v1.NewUserServiceClient(conn)
 
 		token, _ := cmd.Flags().GetString("token")
 		email, _ := cmd.Flags().GetString("email")
-		// fullName flag exists but is ignored by service
-		_, _ = cmd.Flags().GetString("fullName")
+		password, _ := cmd.Flags().GetString("password")
 
-		profile, err := svc.UpdateProfile(context.Background(), token, email)
+		req := &secra_v1.UpdateProfileRequest{
+			Token:           token,
+			Email:           email,
+			Password:        password,
+			ConfirmPassword: password,
+		}
+		res, err := client.UpdateProfile(context.Background(), req)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "update-profile failed: %v\n", err)
 			os.Exit(1)
 		}
-		fmt.Printf("Updated Profile:\nID: %s\nUsername: %s\nEmail: %s\n", profile.ID.String(), profile.Username, profile.Email)
+		fmt.Printf("Updated Profile:\nID: %s\nUsername: %s\nEmail: %s\n", res.Id, res.Username, res.Email)
 	},
 }
 
 func init() {
 	updateProfileCmd.Flags().String("token", "", "JWT token")
 	updateProfileCmd.Flags().String("email", "", "New email address")
+	updateProfileCmd.Flags().String("password", "", "New password (leave empty to keep unchanged)")
 	updateProfileCmd.MarkFlagRequired("token")
 	updateProfileCmd.MarkFlagRequired("email")
 }

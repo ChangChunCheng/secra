@@ -12,7 +12,8 @@ message LoginRequest {
 message RegisterRequest {
   string username = 1;
   string password = 2;
-  string email    = 3;
+  string confirmPassword = 3;
+  string email    = 4;
 }
 
 message TokenRequest {
@@ -20,9 +21,10 @@ message TokenRequest {
 }
 
 message UpdateProfileRequest {
-  string token    = 1;
-  string email    = 2;
-  string fullName = 3;
+   string token         = 1;
+   string email         = 2;
+   string password      = 3;
+   string confirmPassword = 4;
 }
 
 message UserProfile {

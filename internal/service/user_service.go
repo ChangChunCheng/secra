@@ -4,14 +4,16 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"time"
 
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/google/uuid"
+	"gitlab.com/jacky850509/secra/internal/auth"
 	"gitlab.com/jacky850509/secra/internal/config"
 	"gitlab.com/jacky850509/secra/internal/model"
 	"gitlab.com/jacky850509/secra/internal/repo"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 // UserService encapsulates user registration and OAuth login logic.
@@ -30,8 +32,31 @@ func NewUserService(r *repo.UserRepository) *UserService {
 	return &UserService{repo: r}
 }
 
+func (s *UserService) CheckPassword(password string, confirmPassword string) (*string, error) {
+	passwordHash := ""
+	var err error
+	// validate password fields
+	if password != "" || confirmPassword != "" {
+		if password != confirmPassword {
+			return nil, status.Errorf(codes.InvalidArgument, "password and confirmPassword must match")
+		}
+		// password hash
+		passwordHash, err = auth.HashPassword(password)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return &passwordHash, nil
+}
+
 // Register creates a new system user.
-func (s *UserService) Register(ctx context.Context, username, email, passwordHash string) (*model.User, error) {
+func (s *UserService) Register(ctx context.Context, username, email, password string, confirmPassword string) (*model.User, error) {
+
+	passwordHash, err := s.CheckPassword(password, confirmPassword)
+	if err != nil {
+		return nil, err
+	}
+
 	// 防止重複
 	if existing, _ := s.repo.GetUserByUsername(ctx, username); existing.ID != uuid.Nil {
 		return nil, errors.New("username already exists")
@@ -43,7 +68,7 @@ func (s *UserService) Register(ctx context.Context, username, email, passwordHas
 		ID:                 uuid.New(),
 		Username:           username,
 		Email:              email,
-		PasswordHash:       passwordHash,
+		PasswordHash:       *passwordHash,
 		Role:               "user",
 		Status:             "active",
 		MustChangePassword: false,
@@ -85,7 +110,7 @@ func (s *UserService) Login(ctx context.Context, username, password string) (str
 	if err != nil {
 		return "", 0, err
 	}
-	if user.PasswordHash != password {
+	if auth.CheckPasswordHash(password, user.PasswordHash) != nil {
 		return "", 0, errors.New("invalid credentials")
 	}
 
@@ -103,7 +128,6 @@ func (s *UserService) Login(ctx context.Context, username, password string) (str
 
 // generateJWT 建立 JWT 並回傳 token 及過期 Unix 時間
 func (s *UserService) generateJWT(sub []byte) (string, int64, error) {
-
 	expireAt := time.Now().Add(config.Load().JWTConfig.Expiry).Unix()
 	claims := jwt.RegisteredClaims{
 		Subject:   string(sub),
@@ -111,7 +135,7 @@ func (s *UserService) generateJWT(sub []byte) (string, int64, error) {
 		IssuedAt:  jwt.NewNumericDate(time.Now()),
 	}
 	tokenObj := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	token, err := tokenObj.SignedString([]byte(config.Load().JWTConfig.Secret))
+	token, err := tokenObj.SignedString(config.Load().JWTConfig.Secret)
 	if err != nil {
 		return "", 0, err
 	}
@@ -121,7 +145,7 @@ func (s *UserService) generateJWT(sub []byte) (string, int64, error) {
 func (s *UserService) parseJWT(token string) (*UserJWTSecret, error) {
 	// parse token
 	parsed, err := jwt.ParseWithClaims(token, &jwt.RegisteredClaims{}, func(t *jwt.Token) (interface{}, error) {
-		return []byte(config.Load().JWTConfig.Secret), nil
+		return config.Load().JWTConfig.Secret, nil
 	})
 	if err != nil {
 		return nil, err
@@ -144,19 +168,24 @@ func (s *UserService) GetProfile(ctx context.Context, token string) (*model.User
 	if err != nil {
 		return nil, err
 	}
-	fmt.Println(secret)
 	// retrieve user by ID
 	return s.repo.FindByID(ctx, secret.ID.String())
 }
 
 // UpdateProfile parses the JWT token, updates the user's email (ignoring fullName), and returns the updated user.
 // Note: fullName field is not stored in the user model and is ignored.
-func (s *UserService) UpdateProfile(ctx context.Context, token, email string) (*model.User, error) {
+func (s *UserService) UpdateProfile(ctx context.Context, token, email, password string, confirmPassword string) (*model.User, error) {
+
+	passwordHash, err := s.CheckPassword(password, confirmPassword)
+	if err != nil {
+		return nil, err
+	}
+
 	// parse token to get user ID
 	secret, err := s.parseJWT(token)
 	if err != nil {
 		return nil, err
 	}
 	// update email via repository
-	return s.repo.UpdateEmail(ctx, secret.ID.String(), email)
+	return s.repo.UpdateEmailAndPassword(ctx, secret.ID.String(), email, *passwordHash)
 }
