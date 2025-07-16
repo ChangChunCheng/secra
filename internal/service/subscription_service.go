@@ -11,12 +11,22 @@ import (
 
 // SubscriptionService handles business logic for subscriptions.
 type SubscriptionService struct {
-	repo *repo.SubscriptionRepository
+	repo          *repo.SubscriptionRepository
+	targetTypeMap map[int]string
 }
 
 // NewSubscriptionService creates a new SubscriptionService.
 func NewSubscriptionService(r *repo.SubscriptionRepository) *SubscriptionService {
-	return &SubscriptionService{repo: r}
+	// preload target types map from repository
+	m, err := r.GetTargetTypes(context.Background())
+	if err != nil {
+		// on error fallback to empty map
+		m = make(map[int]string)
+	}
+	return &SubscriptionService{
+		repo:          r,
+		targetTypeMap: m,
+	}
 }
 
 // SubscriptionTarget 用於 gRPC handler 與 service 間轉換
@@ -26,21 +36,12 @@ type SubscriptionTarget struct {
 }
 
 // SeverityToString 將閾值轉回字串
-func SeverityToString(level int16) string {
-	switch level {
-	case 1:
-		return "INFO"
-	case 2:
-		return "LOW"
-	case 3:
-		return "MEDIUM"
-	case 4:
-		return "HIGH"
-	case 5:
-		return "CRITICAL"
-	default:
-		return "LOW"
+func (s *SubscriptionService) SeverityToString(level int16) string {
+	// lookup from preloaded map
+	if name, ok := s.targetTypeMap[int(level)]; ok {
+		return strings.ToUpper(name)
 	}
+	return "UNKNOWN"
 }
 
 // CreateSubscription creates a subscription with its targets.

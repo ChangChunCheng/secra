@@ -38,13 +38,13 @@ func (h *SubscriptionHandler) CreateSubscription(ctx context.Context, req *secra
 		Subscription: &secra_v1.Subscription{
 			Id:                sub.ID.String(),
 			UserId:            sub.UserID.String(),
-			SeverityThreshold: service.SeverityToString(sub.SeverityThreshold),
+			SeverityThreshold: h.subService.SeverityToString(sub.SeverityThreshold),
 			CreatedAt:         sub.CreatedAt.Format(time.RFC3339),
 		},
 	}
 	for _, t := range sub.Targets {
 		resp.Subscription.Targets = append(resp.Subscription.Targets, &secra_v1.SubscriptionTarget{
-			TargetType: service.SeverityToString(int16(t.TargetTypeID)),
+			TargetType: h.subService.SeverityToString(int16(t.TargetTypeID)),
 			TargetId:   t.TargetID.String(),
 		})
 	}
@@ -62,12 +62,12 @@ func (h *SubscriptionHandler) ListSubscriptions(ctx context.Context, req *secra_
 		item := &secra_v1.Subscription{
 			Id:                s.ID.String(),
 			UserId:            s.UserID.String(),
-			SeverityThreshold: service.SeverityToString(s.SeverityThreshold),
+			SeverityThreshold: h.subService.SeverityToString(s.SeverityThreshold),
 			CreatedAt:         s.CreatedAt.Format(time.RFC3339),
 		}
 		for _, t := range s.Targets {
 			item.Targets = append(item.Targets, &secra_v1.SubscriptionTarget{
-				TargetType: service.SeverityToString(int16(t.TargetTypeID)),
+				TargetType: h.subService.SeverityToString(int16(t.TargetTypeID)),
 				TargetId:   t.TargetID.String(),
 			})
 		}

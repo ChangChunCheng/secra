@@ -33,6 +33,29 @@ func (r *SubscriptionRepository) CreateSubscription(ctx context.Context, sub *mo
 	})
 }
 
+// GetTargetTypes retrieves all target_types and returns a map[id]name.
+func (r *SubscriptionRepository) GetTargetTypes(ctx context.Context) (map[int]string, error) {
+	rows, err := r.db.NewSelect().
+		Model((*model.TargetType)(nil)).
+		ColumnExpr("id, name").
+		TableExpr("target_types").
+		Rows(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	m := make(map[int]string)
+	for rows.Next() {
+		var id int
+		var name string
+		if err := rows.Scan(&id, &name); err != nil {
+			return nil, err
+		}
+		m[id] = name
+	}
+	return m, nil
+}
+
 // GetSubscriptionsByUser returns subscriptions and their targets for a user.
 func (r *SubscriptionRepository) GetSubscriptionsByUser(ctx context.Context, userID string) ([]model.Subscription, error) {
 	var subs []model.Subscription
