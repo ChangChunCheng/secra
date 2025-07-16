@@ -1,4 +1,4 @@
-package resource
+package cvesource
 
 import (
 	"context"
@@ -13,7 +13,7 @@ import (
 )
 
 var listCveSourceCmd = &cobra.Command{
-	Use:   "list-cve-source",
+	Use:   "list",
 	Short: "List CVE sources with pagination",
 	Run: func(cmd *cobra.Command, args []string) {
 		cfg := config.Load()

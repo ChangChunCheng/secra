@@ -1,4 +1,4 @@
-package resource
+package vendor
 
 import (
 	"context"
@@ -13,7 +13,7 @@ import (
 )
 
 var createVendorCmd = &cobra.Command{
-	Use:   "create-vendor",
+	Use:   "create",
 	Short: "Create a new vendor",
 	Run: func(cmd *cobra.Command, args []string) {
 		cfg := config.Load()

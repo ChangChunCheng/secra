@@ -1,4 +1,4 @@
-package resource
+package cvesource
 
 import (
 	"context"
@@ -12,9 +12,9 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 )
 
-var getCveSourceCmd = &cobra.Command{
-	Use:   "get-cve-source",
-	Short: "Get a CVE source by ID",
+var deleteCveSourceCmd = &cobra.Command{
+	Use:   "delete",
+	Short: "Delete a CVE source by ID",
 	Run: func(cmd *cobra.Command, args []string) {
 		cfg := config.Load()
 		conn, err := grpc.Dial(cfg.GRPCPort, grpc.WithTransportCredentials(insecure.NewCredentials()))
@@ -26,17 +26,17 @@ var getCveSourceCmd = &cobra.Command{
 
 		client := secra_v1.NewCVESourceServiceClient(conn)
 		id, _ := cmd.Flags().GetString("id")
-		req := &secra_v1.GetCVESourceRequest{Id: id}
-		res, err := client.GetCVESource(context.Background(), req)
+		req := &secra_v1.DeleteCVESourceRequest{Id: id}
+		_, err = client.DeleteCVESource(context.Background(), req)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "error getting CVE source: %v\n", err)
+			fmt.Fprintf(os.Stderr, "error deleting CVE source: %v\n", err)
 			os.Exit(1)
 		}
-		fmt.Printf("CVE Source: ID=%s Name=%s URL=%s Enabled=%v\n", res.Id, res.Name, res.Url, res.Enabled)
+		fmt.Printf("Deleted CVE source: ID=%s\n", id)
 	},
 }
 
 func init() {
-	getCveSourceCmd.Flags().String("id", "", "Resource ID")
-	getCveSourceCmd.MarkFlagRequired("id")
+	deleteCveSourceCmd.Flags().String("id", "", "Resource ID")
+	deleteCveSourceCmd.MarkFlagRequired("id")
 }

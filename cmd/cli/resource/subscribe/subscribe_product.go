@@ -1,4 +1,4 @@
-package resource
+package subscribe
 
 import (
 	"context"
@@ -14,7 +14,7 @@ import (
 )
 
 var subscribeProductCmd = &cobra.Command{
-	Use:   "subscribe-product",
+	Use:   "product",
 	Short: "Subscribe to a product",
 	Run: func(cmd *cobra.Command, args []string) {
 		cfg := config.Load()

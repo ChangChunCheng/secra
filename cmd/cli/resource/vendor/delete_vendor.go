@@ -1,4 +1,4 @@
-package resource
+package vendor
 
 import (
 	"context"
@@ -12,9 +12,9 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 )
 
-var listVendorCmd = &cobra.Command{
-	Use:   "list-vendor",
-	Short: "List vendors",
+var deleteVendorCmd = &cobra.Command{
+	Use:   "delete",
+	Short: "Delete a vendor",
 	Run: func(cmd *cobra.Command, args []string) {
 		cfg := config.Load()
 		conn, err := grpc.NewClient(cfg.GRPCPort, grpc.WithTransportCredentials(insecure.NewCredentials()))
@@ -25,23 +25,18 @@ var listVendorCmd = &cobra.Command{
 		defer conn.Close()
 
 		client := secra_v1.NewVendorServiceClient(conn)
-		limit, _ := cmd.Flags().GetInt("limit")
-		offset, _ := cmd.Flags().GetInt("offset")
+		id, _ := cmd.Flags().GetString("id")
 
-		req := &secra_v1.ListVendorRequest{Limit: int32(limit), Offset: int32(offset)}
-		res, err := client.ListVendor(context.Background(), req)
+		_, err = client.DeleteVendor(context.Background(), &secra_v1.DeleteVendorRequest{Id: id})
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "error listing vendors: %v\n", err)
+			fmt.Fprintf(os.Stderr, "error deleting vendor: %v\n", err)
 			os.Exit(1)
 		}
-
-		for _, v := range res.Vendors {
-			fmt.Printf("ID=%s Name=%s\n", v.Id, v.Name)
-		}
+		fmt.Printf("Deleted Vendor: ID=%s\n", id)
 	},
 }
 
 func init() {
-	listVendorCmd.Flags().Int("limit", 10, "Maximum number of vendors")
-	listVendorCmd.Flags().Int("offset", 0, "Offset for pagination")
+	deleteVendorCmd.Flags().String("id", "", "Vendor UUID")
+	deleteVendorCmd.MarkFlagRequired("id")
 }

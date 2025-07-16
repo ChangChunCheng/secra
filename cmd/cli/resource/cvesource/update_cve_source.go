@@ -1,4 +1,4 @@
-package resource
+package cvesource
 
 import (
 	"context"
@@ -13,7 +13,7 @@ import (
 )
 
 var updateCveSourceCmd = &cobra.Command{
-	Use:   "update-cve-source",
+	Use:   "update",
 	Short: "Update an existing CVE source",
 	Run: func(cmd *cobra.Command, args []string) {
 		cfg := config.Load()

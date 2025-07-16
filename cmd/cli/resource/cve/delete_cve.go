@@ -1,4 +1,4 @@
-package resource
+package cve
 
 import (
 	"context"
@@ -12,9 +12,9 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 )
 
-var deleteVendorCmd = &cobra.Command{
-	Use:   "delete-vendor",
-	Short: "Delete a vendor",
+var deleteCveCmd = &cobra.Command{
+	Use:   "delete",
+	Short: "Delete a CVE record",
 	Run: func(cmd *cobra.Command, args []string) {
 		cfg := config.Load()
 		conn, err := grpc.NewClient(cfg.GRPCPort, grpc.WithTransportCredentials(insecure.NewCredentials()))
@@ -24,19 +24,19 @@ var deleteVendorCmd = &cobra.Command{
 		}
 		defer conn.Close()
 
-		client := secra_v1.NewVendorServiceClient(conn)
+		client := secra_v1.NewCVEServiceClient(conn)
 		id, _ := cmd.Flags().GetString("id")
 
-		_, err = client.DeleteVendor(context.Background(), &secra_v1.DeleteVendorRequest{Id: id})
+		_, err = client.DeleteCVE(context.Background(), &secra_v1.DeleteCVERequest{Id: id})
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "error deleting vendor: %v\n", err)
+			fmt.Fprintf(os.Stderr, "error deleting CVE: %v\n", err)
 			os.Exit(1)
 		}
-		fmt.Printf("Deleted Vendor: ID=%s\n", id)
+		fmt.Printf("Deleted CVE: ID=%s\n", id)
 	},
 }
 
 func init() {
-	deleteVendorCmd.Flags().String("id", "", "Vendor UUID")
-	deleteVendorCmd.MarkFlagRequired("id")
+	deleteCveCmd.Flags().String("id", "", "CVE UUID")
+	deleteCveCmd.MarkFlagRequired("id")
 }

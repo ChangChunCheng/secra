@@ -1,4 +1,4 @@
-package resource
+package cvesource
 
 import (
 	"context"
@@ -13,7 +13,7 @@ import (
 )
 
 var createCveSourceCmd = &cobra.Command{
-	Use:   "create-cve-source",
+	Use:   "create",
 	Short: "Create a new CVE source",
 	Run: func(cmd *cobra.Command, args []string) {
 		cfg := config.Load()

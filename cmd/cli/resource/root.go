@@ -1,6 +1,14 @@
 package resource
 
-import "github.com/spf13/cobra"
+import (
+	"github.com/spf13/cobra"
+
+	"gitlab.com/jacky850509/secra/cmd/cli/resource/cve"
+	"gitlab.com/jacky850509/secra/cmd/cli/resource/cvesource"
+	"gitlab.com/jacky850509/secra/cmd/cli/resource/product"
+	"gitlab.com/jacky850509/secra/cmd/cli/resource/subscribe"
+	"gitlab.com/jacky850509/secra/cmd/cli/resource/vendor"
+)
 
 // Cmd is the parent command for resource operations.
 var Cmd = &cobra.Command{
@@ -9,20 +17,9 @@ var Cmd = &cobra.Command{
 }
 
 func init() {
-	Cmd.AddCommand(createCveCmd)
-	Cmd.AddCommand(subscribeCveSourceCmd)
-	Cmd.AddCommand(subscribeProductCmd)
-	Cmd.AddCommand(subscribeVendorCmd)
-	Cmd.AddCommand(createVendorCmd)
-	Cmd.AddCommand(getVendorCmd)
-	Cmd.AddCommand(listVendorCmd)
-	Cmd.AddCommand(updateVendorCmd)
-	Cmd.AddCommand(deleteVendorCmd)
-
-	// CVE Source commands
-	Cmd.AddCommand(createCveSourceCmd)
-	Cmd.AddCommand(getCveSourceCmd)
-	Cmd.AddCommand(listCveSourceCmd)
-	Cmd.AddCommand(updateCveSourceCmd)
-	Cmd.AddCommand(deleteCveSourceCmd)
+	Cmd.AddCommand(vendor.Cmd)
+	Cmd.AddCommand(product.Cmd)
+	Cmd.AddCommand(cvesource.Cmd)
+	Cmd.AddCommand(cve.Cmd)
+	Cmd.AddCommand(subscribe.Cmd)
 }
