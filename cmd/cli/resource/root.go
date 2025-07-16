@@ -1,4 +1,4 @@
-package source
+package resource
 
 import "github.com/spf13/cobra"
 

@@ -1,4 +1,4 @@
-package source
+package resource
 
 import (
 	"context"
@@ -13,9 +13,9 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 )
 
-var subscribeProductCmd = &cobra.Command{
-	Use:   "subscribe-product",
-	Short: "Subscribe to a product",
+var subscribeCveSourceCmd = &cobra.Command{
+	Use:   "subscribe-cve-source",
+	Short: "Subscribe to a CVE source",
 	Run: func(cmd *cobra.Command, args []string) {
 		cfg := config.Load()
 		conn, err := grpc.NewClient(cfg.GRPCPort, grpc.WithTransportCredentials(insecure.NewCredentials()))
@@ -28,19 +28,17 @@ var subscribeProductCmd = &cobra.Command{
 		client := secra_v1.NewSubscriptionServiceClient(conn)
 
 		userID, _ := cmd.Flags().GetString("user-id")
-		productID, _ := cmd.Flags().GetString("product-id")
+		resourceID, _ := cmd.Flags().GetString("resource-id")
 		severity, _ := cmd.Flags().GetString("severity")
 		severity = strings.ToUpper(severity)
 
 		req := &secra_v1.CreateSubscriptionRequest{
-			UserId:            userID,
-			SeverityThreshold: severity,
+			UserId: userID,
 			Targets: []*secra_v1.SubscriptionTarget{
 				{
-					TargetType: "product",
-					TargetId:   productID,
-				},
-			},
+					TargetType: "cve_source",
+					TargetId:   resourceID,
+				}},
 		}
 		resp, err := client.CreateSubscription(context.Background(), req)
 		if err != nil {
@@ -53,9 +51,9 @@ var subscribeProductCmd = &cobra.Command{
 }
 
 func init() {
-	subscribeProductCmd.Flags().String("user-id", "", "User UUID")
-	subscribeProductCmd.Flags().String("product-id", "", "Product UUID to subscribe")
-	subscribeProductCmd.Flags().String("severity", "low", "Severity threshold")
-	subscribeProductCmd.MarkFlagRequired("user-id")
-	subscribeProductCmd.MarkFlagRequired("product-id")
+	subscribeCveSourceCmd.Flags().String("user-id", "", "User UUID")
+	subscribeCveSourceCmd.Flags().String("resource-id", "", "CVE Resource UUID to subscribe")
+	subscribeCveSourceCmd.Flags().String("severity", "low", "Severity threshold")
+	subscribeCveSourceCmd.MarkFlagRequired("user-id")
+	subscribeCveSourceCmd.MarkFlagRequired("resource-id")
 }

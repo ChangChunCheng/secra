@@ -1,4 +1,4 @@
-package source
+package resource
 
 import (
 	"context"
@@ -13,9 +13,9 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 )
 
-var subscribeVendorCmd = &cobra.Command{
-	Use:   "subscribe-vendor",
-	Short: "Subscribe to a vendor",
+var subscribeProductCmd = &cobra.Command{
+	Use:   "subscribe-product",
+	Short: "Subscribe to a product",
 	Run: func(cmd *cobra.Command, args []string) {
 		cfg := config.Load()
 		conn, err := grpc.NewClient(cfg.GRPCPort, grpc.WithTransportCredentials(insecure.NewCredentials()))
@@ -28,17 +28,19 @@ var subscribeVendorCmd = &cobra.Command{
 		client := secra_v1.NewSubscriptionServiceClient(conn)
 
 		userID, _ := cmd.Flags().GetString("user-id")
-		resourceID, _ := cmd.Flags().GetString("resource-id")
+		productID, _ := cmd.Flags().GetString("product-id")
 		severity, _ := cmd.Flags().GetString("severity")
 		severity = strings.ToUpper(severity)
 
 		req := &secra_v1.CreateSubscriptionRequest{
-			UserId: userID,
+			UserId:            userID,
+			SeverityThreshold: severity,
 			Targets: []*secra_v1.SubscriptionTarget{
 				{
-					TargetType: "vendor",
-					TargetId:   resourceID,
-				}},
+					TargetType: "product",
+					TargetId:   productID,
+				},
+			},
 		}
 		resp, err := client.CreateSubscription(context.Background(), req)
 		if err != nil {
@@ -51,9 +53,9 @@ var subscribeVendorCmd = &cobra.Command{
 }
 
 func init() {
-	subscribeVendorCmd.Flags().String("user-id", "", "User UUID")
-	subscribeVendorCmd.Flags().String("vendor-id", "", "Vendor UUID to subscribe")
-	subscribeVendorCmd.Flags().String("severity", "low", "Severity threshold")
-	subscribeVendorCmd.MarkFlagRequired("user-id")
-	subscribeVendorCmd.MarkFlagRequired("vendor-id")
+	subscribeProductCmd.Flags().String("user-id", "", "User UUID")
+	subscribeProductCmd.Flags().String("product-id", "", "Product UUID to subscribe")
+	subscribeProductCmd.Flags().String("severity", "low", "Severity threshold")
+	subscribeProductCmd.MarkFlagRequired("user-id")
+	subscribeProductCmd.MarkFlagRequired("product-id")
 }

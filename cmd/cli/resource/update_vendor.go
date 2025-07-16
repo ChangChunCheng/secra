@@ -1,4 +1,4 @@
-package source
+package resource
 
 import (
 	"context"
@@ -12,9 +12,9 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 )
 
-var deleteVendorCmd = &cobra.Command{
-	Use:   "delete-vendor",
-	Short: "Delete a vendor",
+var updateVendorCmd = &cobra.Command{
+	Use:   "update-vendor",
+	Short: "Update a vendor",
 	Run: func(cmd *cobra.Command, args []string) {
 		cfg := config.Load()
 		conn, err := grpc.NewClient(cfg.GRPCPort, grpc.WithTransportCredentials(insecure.NewCredentials()))
@@ -26,17 +26,23 @@ var deleteVendorCmd = &cobra.Command{
 
 		client := secra_v1.NewVendorServiceClient(conn)
 		id, _ := cmd.Flags().GetString("id")
+		name, _ := cmd.Flags().GetString("name")
 
-		_, err = client.DeleteVendor(context.Background(), &secra_v1.DeleteVendorRequest{Id: id})
+		req := &secra_v1.UpdateVendorRequest{
+			Vendor: &secra_v1.Vendor{Id: id, Name: name},
+		}
+		res, err := client.UpdateVendor(context.Background(), req)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "error deleting vendor: %v\n", err)
+			fmt.Fprintf(os.Stderr, "error updating vendor: %v\n", err)
 			os.Exit(1)
 		}
-		fmt.Printf("Deleted Vendor: ID=%s\n", id)
+		fmt.Printf("Updated Vendor: ID=%s Name=%s\n", res.Id, res.Name)
 	},
 }
 
 func init() {
-	deleteVendorCmd.Flags().String("id", "", "Vendor UUID")
-	deleteVendorCmd.MarkFlagRequired("id")
+	updateVendorCmd.Flags().String("id", "", "Vendor UUID")
+	updateVendorCmd.Flags().String("name", "", "New vendor name")
+	updateVendorCmd.MarkFlagRequired("id")
+	updateVendorCmd.MarkFlagRequired("name")
 }
