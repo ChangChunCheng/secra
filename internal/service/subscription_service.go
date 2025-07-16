@@ -19,9 +19,32 @@ func NewSubscriptionService(r *repo.SubscriptionRepository) *SubscriptionService
 	return &SubscriptionService{repo: r}
 }
 
+// SubscriptionTarget 用於 gRPC handler 與 service 間轉換
+type SubscriptionTarget struct {
+	TargetType string
+	TargetID   string
+}
+
+// SeverityToString 將閾值轉回字串
+func SeverityToString(level int16) string {
+	switch level {
+	case 1:
+		return "INFO"
+	case 2:
+		return "LOW"
+	case 3:
+		return "MEDIUM"
+	case 4:
+		return "HIGH"
+	case 5:
+		return "CRITICAL"
+	default:
+		return "LOW"
+	}
+}
+
 // CreateSubscription creates a subscription with its targets.
-func (s *SubscriptionService) CreateSubscription(ctx context.Context, userID string, targets []model.SubscriptionTarget, severity string) (*model.Subscription, error) {
-	// 文字等級轉小寫或大寫都支援，先轉大寫
+func (s *SubscriptionService) CreateSubscription(ctx context.Context, userID string, targets []SubscriptionTarget, severity string) (*model.Subscription, error) {
 	sev := strings.ToUpper(severity)
 	sevMap := map[string]int16{
 		"INFO":     1,
@@ -38,7 +61,25 @@ func (s *SubscriptionService) CreateSubscription(ctx context.Context, userID str
 		UserID:            mustParseUUID(userID),
 		SeverityThreshold: levelID,
 	}
-	if err := s.repo.CreateSubscription(ctx, sub, targets); err != nil {
+	var modelTargets []model.SubscriptionTarget
+	for _, t := range targets {
+		var typeID int
+		switch strings.ToLower(t.TargetType) {
+		case "cve_source":
+			typeID = 1
+		case "vendor":
+			typeID = 2
+		case "product":
+			typeID = 3
+		default:
+			typeID = 1
+		}
+		modelTargets = append(modelTargets, model.SubscriptionTarget{
+			TargetTypeID: typeID,
+			TargetID:     mustParseUUID(t.TargetID),
+		})
+	}
+	if err := s.repo.CreateSubscription(ctx, sub, modelTargets); err != nil {
 		return nil, err
 	}
 	return sub, nil
@@ -47,6 +88,11 @@ func (s *SubscriptionService) CreateSubscription(ctx context.Context, userID str
 // ListSubscriptions returns all subscriptions for a user.
 func (s *SubscriptionService) ListSubscriptions(ctx context.Context, userID string) ([]model.Subscription, error) {
 	return s.repo.GetSubscriptionsByUser(ctx, userID)
+}
+
+// DeleteSubscription deletes a subscription for a user.
+func (s *SubscriptionService) DeleteSubscription(ctx context.Context, userID string, subscriptionID string) error {
+	return s.repo.DeleteSubscription(ctx, userID, subscriptionID)
 }
 
 // helper to parse string to uuid.UUID

@@ -4,12 +4,16 @@ package secra.v1;
 
 option go_package = "gitlab.com/jacky850509/secra/api/gen/v1;secra_v1";
 
+import "google/protobuf/empty.proto";
+
 // SubscriptionService 定義訂閱功能的 gRPC 介面
 service SubscriptionService {
   // 建立訂閱
   rpc CreateSubscription(CreateSubscriptionRequest) returns (CreateSubscriptionResponse);
   // 列出使用者所有訂閱
   rpc ListSubscriptions(ListSubscriptionsRequest) returns (ListSubscriptionsResponse);
+  // 刪除訂閱
+  rpc DeleteSubscription(DeleteSubscriptionRequest) returns (google.protobuf.Empty);
 }
 
 message SubscriptionTarget {
@@ -46,4 +50,9 @@ message ListSubscriptionsRequest {
 message ListSubscriptionsResponse {
   repeated Subscription subscriptions = 1;
   int32 total = 2;
+}
+
+message DeleteSubscriptionRequest {
+  // 訂閱 ID (UUID 格式)
+  string id = 1;
 }

@@ -1,4 +1,4 @@
-package subscribe
+package subscription
 
 import (
 	"context"
@@ -13,9 +13,9 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 )
 
-var subscribeProductCmd = &cobra.Command{
+var subscriptionProductCmd = &cobra.Command{
 	Use:   "product",
-	Short: "Subscribe to a product",
+	Short: "Subscription to a product",
 	Run: func(cmd *cobra.Command, args []string) {
 		cfg := config.Load()
 		conn, err := grpc.NewClient(cfg.GRPCPort, grpc.WithTransportCredentials(insecure.NewCredentials()))
@@ -53,9 +53,9 @@ var subscribeProductCmd = &cobra.Command{
 }
 
 func init() {
-	subscribeProductCmd.Flags().String("user-id", "", "User UUID")
-	subscribeProductCmd.Flags().String("product-id", "", "Product UUID to subscribe")
-	subscribeProductCmd.Flags().String("severity", "low", "Severity threshold")
-	subscribeProductCmd.MarkFlagRequired("user-id")
-	subscribeProductCmd.MarkFlagRequired("product-id")
+	subscriptionProductCmd.Flags().String("user-id", "", "User UUID")
+	subscriptionProductCmd.Flags().String("product-id", "", "Product UUID to subscription")
+	subscriptionProductCmd.Flags().String("severity", "low", "Severity threshold")
+	subscriptionProductCmd.MarkFlagRequired("user-id")
+	subscriptionProductCmd.MarkFlagRequired("product-id")
 }

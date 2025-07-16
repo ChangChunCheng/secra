@@ -6,7 +6,7 @@ import (
 	"gitlab.com/jacky850509/secra/cmd/cli/resource/cve"
 	"gitlab.com/jacky850509/secra/cmd/cli/resource/cvesource"
 	"gitlab.com/jacky850509/secra/cmd/cli/resource/product"
-	"gitlab.com/jacky850509/secra/cmd/cli/resource/subscribe"
+	"gitlab.com/jacky850509/secra/cmd/cli/resource/subscription"
 	"gitlab.com/jacky850509/secra/cmd/cli/resource/vendor"
 )
 
@@ -21,5 +21,5 @@ func init() {
 	Cmd.AddCommand(product.Cmd)
 	Cmd.AddCommand(cvesource.Cmd)
 	Cmd.AddCommand(cve.Cmd)
-	Cmd.AddCommand(subscribe.Cmd)
+	Cmd.AddCommand(subscription.Cmd)
 }

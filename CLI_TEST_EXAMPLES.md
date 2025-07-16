@@ -288,14 +288,14 @@ Deleted Product: ID=<product-uuid>
 
 ---
 
-## 8. 訂閱功能 (resource subscribe)
+## 8. 訂閱功能 (resource subscription)
 
-以下示例使用 `resource subscribe` 子模組，可以對 Vendor、Product、CVE Source 進行訂閱。
+以下示例使用 `resource subscription` 子模組，可以對 Vendor、Product、CVE Source 進行訂閱。
 
 ### 8.1 訂閱 Vendor
 
 ```bash
-go run cmd/cli/secra.go resource subscribe vendor \
+go run cmd/cli/secra.go resource subscription vendor \
   --user-id "5787e712-6e39-49b2-9947-43b82bc860e1" \
   --vendor-id "0e029aaa-d339-413a-af9e-f1bb26c9a1f8" \
   --severity "medium"
@@ -310,7 +310,7 @@ Subscription created: User=<user-uuid> Vendors=[<vendor-uuid>] Severity=medium
 ### 8.2 訂閱 Product
 
 ```bash
-go run cmd/cli/secra.go resource subscribe product \
+go run cmd/cli/secra.go resource subscription product \
   --user-id "5787e712-6e39-49b2-9947-43b82bc860e1" \
   --product-id "63637e30-0c91-419c-bd46-ad68650dacf9" \
   --severity "low"
@@ -325,7 +325,7 @@ Subscription created: User=<user-uuid> Products=[<product-uuid>] Severity=low
 ### 8.3 訂閱 CVE Source
 
 ```bash
-go run cmd/cli/secra.go resource subscribe cve-source \
+go run cmd/cli/secra.go resource subscription cve-source \
   --user-id "5787e712-6e39-49b2-9947-43b82bc860e1" \
   --resource-id "bff832d2-002e-41b9-988f-90f930277a58" \
   --severity "high"

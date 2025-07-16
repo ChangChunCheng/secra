@@ -9,4 +9,9 @@ var Cmd = &cobra.Command{
 }
 
 func init() {
+	Cmd.AddCommand(createProductCmd)
+	Cmd.AddCommand(getProductCmd)
+	Cmd.AddCommand(listProductCmd)
+	Cmd.AddCommand(updateProductCmd)
+	Cmd.AddCommand(deleteProductCmd)
 }

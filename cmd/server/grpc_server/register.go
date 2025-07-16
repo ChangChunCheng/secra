@@ -4,6 +4,7 @@ import (
 	"google.golang.org/grpc"
 
 	secra_v1 "gitlab.com/jacky850509/secra/api/gen/v1"
+	// Import product handler
 )
 
 // RegisterServices registers all gRPC service handlers with the given server.
@@ -18,4 +19,7 @@ func RegisterServices(server *grpc.Server) {
 
 	// Register User service
 	secra_v1.RegisterUserServiceServer(server, &UserServiceHandler{})
+
+	// Register Product service
+	secra_v1.RegisterProductServiceServer(server, &ProductServiceHandler{})
 }

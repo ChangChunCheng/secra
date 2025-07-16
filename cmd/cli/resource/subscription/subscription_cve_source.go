@@ -1,4 +1,4 @@
-package subscribe
+package subscription
 
 import (
 	"context"
@@ -13,9 +13,9 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 )
 
-var subscribeCveSourceCmd = &cobra.Command{
+var subscriptionCveSourceCmd = &cobra.Command{
 	Use:   "cve-source",
-	Short: "Subscribe to a CVE source",
+	Short: "Subscription to a CVE source",
 	Run: func(cmd *cobra.Command, args []string) {
 		cfg := config.Load()
 		conn, err := grpc.NewClient(cfg.GRPCPort, grpc.WithTransportCredentials(insecure.NewCredentials()))
@@ -33,12 +33,14 @@ var subscribeCveSourceCmd = &cobra.Command{
 		severity = strings.ToUpper(severity)
 
 		req := &secra_v1.CreateSubscriptionRequest{
-			UserId: userID,
+			UserId:            userID,
+			SeverityThreshold: severity,
 			Targets: []*secra_v1.SubscriptionTarget{
 				{
 					TargetType: "cve_source",
 					TargetId:   resourceID,
-				}},
+				},
+			},
 		}
 		resp, err := client.CreateSubscription(context.Background(), req)
 		if err != nil {
@@ -51,9 +53,9 @@ var subscribeCveSourceCmd = &cobra.Command{
 }
 
 func init() {
-	subscribeCveSourceCmd.Flags().String("user-id", "", "User UUID")
-	subscribeCveSourceCmd.Flags().String("resource-id", "", "CVE Resource UUID to subscribe")
-	subscribeCveSourceCmd.Flags().String("severity", "low", "Severity threshold")
-	subscribeCveSourceCmd.MarkFlagRequired("user-id")
-	subscribeCveSourceCmd.MarkFlagRequired("resource-id")
+	subscriptionCveSourceCmd.Flags().String("user-id", "", "User UUID")
+	subscriptionCveSourceCmd.Flags().String("resource-id", "", "CVE Resource UUID to subscription")
+	subscriptionCveSourceCmd.Flags().String("severity", "low", "Severity threshold")
+	subscriptionCveSourceCmd.MarkFlagRequired("user-id")
+	subscriptionCveSourceCmd.MarkFlagRequired("resource-id")
 }

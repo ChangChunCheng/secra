@@ -7,10 +7,12 @@ import (
 	"gitlab.com/jacky850509/secra/internal/model"
 )
 
+// SubscriptionRepository handles database operations for subscriptions.
 type SubscriptionRepository struct {
 	db *bun.DB
 }
 
+// NewSubscriptionRepository creates a new SubscriptionRepository.
 func NewSubscriptionRepository(db *bun.DB) *SubscriptionRepository {
 	return &SubscriptionRepository{db: db}
 }
@@ -40,4 +42,26 @@ func (r *SubscriptionRepository) GetSubscriptionsByUser(ctx context.Context, use
 		Where("subscription.user_id = ?", userID).
 		Scan(ctx)
 	return subs, err
+}
+
+// DeleteSubscription deletes a subscription and its targets for a user.
+func (r *SubscriptionRepository) DeleteSubscription(ctx context.Context, userID string, subscriptionID string) error {
+	return r.db.RunInTx(ctx, nil, func(ctx context.Context, tx bun.Tx) error {
+		// delete targets first
+		if _, err := tx.NewDelete().
+			Model((*model.SubscriptionTarget)(nil)).
+			Where("subscription_id = ?", subscriptionID).
+			Exec(ctx); err != nil {
+			return err
+		}
+		// delete subscription, ensure it belongs to user
+		if _, err := tx.NewDelete().
+			Model((*model.Subscription)(nil)).
+			Where("id = ?", subscriptionID).
+			Where("user_id = ?", userID).
+			Exec(ctx); err != nil {
+			return err
+		}
+		return nil
+	})
 }
