@@ -1,4 +1,4 @@
-package resource
+package source
 
 import "github.com/spf13/cobra"
 
@@ -9,13 +9,20 @@ var Cmd = &cobra.Command{
 }
 
 func init() {
-	Cmd.AddCommand(createCveResourceCmd)
 	Cmd.AddCommand(createCveCmd)
-	Cmd.AddCommand(subscribeCveResourceCmd)
+	Cmd.AddCommand(subscribeCveSourceCmd)
 	Cmd.AddCommand(subscribeProductCmd)
 	Cmd.AddCommand(subscribeVendorCmd)
 	Cmd.AddCommand(createVendorCmd)
+	Cmd.AddCommand(getVendorCmd)
 	Cmd.AddCommand(listVendorCmd)
 	Cmd.AddCommand(updateVendorCmd)
 	Cmd.AddCommand(deleteVendorCmd)
+
+	// CVE Source commands
+	Cmd.AddCommand(createCveSourceCmd)
+	Cmd.AddCommand(getCveSourceCmd)
+	Cmd.AddCommand(listCveSourceCmd)
+	Cmd.AddCommand(updateCveSourceCmd)
+	Cmd.AddCommand(deleteCveSourceCmd)
 }

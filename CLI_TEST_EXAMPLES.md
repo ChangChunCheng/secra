@@ -1,54 +1,3 @@
-## User CLI via gRPC
-
-### Register  
-```
-secra user register \
-  --username alice \
-  --email alice@example.com \
-  --password secret  
-```
-輸出:  
-```
-Registered user: alice@example.com (message=Create Success)
-```
-
-### Login  
-```
-secra user login \
-  --username alice \
-  --password "secret"  
-```
-輸出:  
-```
-<JWT_TOKEN> 2025-07-15T18:17:00
-```
-
-### Get Profile  
-```
-secra user get-profile \
-  --token "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ7XCJpZFwiOlwiNTgyODYwYWYtNTkzYi00OGRmLWEzZjQtNDFmMzQxYWVmNGZkXCIsXCJ1c2VybmFtZVwiOlwiYWxpY2VcIixcInJvbGVcIjpcInVzZXJcIn0iLCJleHAiOjE3NTI3MjA0NDMsImlhdCI6MTc1MjYzNDA0M30.kTWpHR-FlqzQpqon39NYfjqomlnGSt9y7sREHXEWOZE" "<JWT_TOKEN>"
-```
-輸出:  
-```
-ID: <uuid>
-Username: alice
-Email: alice@example.com
-```
-
-### Update Profile  
-```
-secra user update-profile \
-  --token "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ7XCJpZFwiOlwiNTgyODYwYWYtNTkzYi00OGRmLWEzZjQtNDFmMzQxYWVmNGZkXCIsXCJ1c2VybmFtZVwiOlwiYWxpY2VcIixcInJvbGVcIjpcInVzZXJcIn0iLCJleHAiOjE3NTI3MjA0NDMsImlhdCI6MTc1MjYzNDA0M30.kTWpHR-FlqzQpqon39NYfjqomlnGSt9y7sREHXEWOZE" \
-  --email alice.new@example.com  
-```
-輸出:  
-```
-Updated Profile:
-ID: <uuid>
-Username: alice
-Email: alice.new@example.com
-```
-
 # CLI 子功能測試指令範例
 
 以下示範如何使用各子指令進行操作，需以 `go run cmd/cli/secra.go` 作為前綴執行，假設使用 gvm 安裝的 Go 執行環境已正確設定。
@@ -114,12 +63,12 @@ Username: alice
 Email: new@example.com
 ```
 
-## 4. 新增 CVE 資源 (resource create-cve-resource)
+## 4. 新增 CVE 資源 (resource create-cve-source)
 
 ```bash
-go run cmd/cli/secra.go resource create-cve-resource \
+go run cmd/cli/secra.go resource create-cve-source \
   --name "ttt" \
-  --type "VendorX Resource" \
+  --type "VendorX Source" \
   --url "https://vendorx.com/feed" \
   --description "https://vendorx.com/feed/desc"
 ```
@@ -127,17 +76,7 @@ go run cmd/cli/secra.go resource create-cve-resource \
 輸出範例：
 
 ```bash
-CVE Source created: ID=<source-uuid> Name=VendorX Resource URL=https://vendorx.com/feed
-```
-
-## 4. 新增 CVE (resource create-cve)
-
-```bash
-go run cmd/cli/secra.go resource create-cve \
-  --source-id bff832d2-002e-41b9-988f-90f930277a58 \
-  --source-uid "CVE-2025-12345" \
-  --title "Sample vulnerability" \
-  --description "Sample vulnerability"
+Created CVE resource: ID=e80e0407-a660-4e19-a83a-bb2070707ccc Name=ttt URL=https://vendorx.com/feed
 ```
 
 ## 5. 新增 Vendor (resource create-vendor)
@@ -158,11 +97,12 @@ Created Vendor: ID=<vendor-uuid> Name=VendorX
 ```bash
 CVE created: ID=<cve-uuid> SourceID=<source-uuid> SourceUID=CVE-2025-12345
 ```
+
 ## 8. 取得 Vendor (resource get-vendor)
 
 ```bash
 go run cmd/cli/secra.go resource get-vendor \
-  --id "<vendor-uuid>"
+  --id "dc791f4c-f0f3-4ff1-89e3-a54dc592446a"
 ```
 
 輸出範例：
@@ -204,7 +144,7 @@ Updated Vendor: ID=<vendor-uuid> Name=NewVendorName
 
 ```bash
 go run cmd/cli/secra.go resource delete-vendor \
-  --id "<vendor-uuid>"
+  --id "dc791f4c-f0f3-4ff1-89e3-a54dc592446a"
 ```
 
 輸出範例：
@@ -259,18 +199,18 @@ Subscription created: User=<user-uuid> CVEResources=[<resource-uuid>] Severity=h
 
 ## NVD 匯入範例
 
-### NVD v1 最近資料
+## NVD v1 最近資料
 ```bash
 go run cmd/cli/secra.go import nvd v1 --recent=true
 ```
 
-### NVD v1 指定時間區間
+## NVD v1 指定時間區間
 
 ```bash
 go run cmd/cli/secra.go import nvd v1 --start=2025-01-01 --end=2025-01-31
 ```
 
-### NVD v2 匯入
+## NVD v2 匯入
 
 ```bash
 go run cmd/cli/secra.go import nvd v2 --start=2025-01-01 --apikey=$$NVD_API_KEY

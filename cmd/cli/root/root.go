@@ -4,7 +4,7 @@ import (
 	"github.com/spf13/cobra"
 	importcmd "gitlab.com/jacky850509/secra/cmd/cli/import"
 	"gitlab.com/jacky850509/secra/cmd/cli/migrate"
-	"gitlab.com/jacky850509/secra/cmd/cli/resource"
+	"gitlab.com/jacky850509/secra/cmd/cli/source"
 	"gitlab.com/jacky850509/secra/cmd/cli/user"
 )
 
@@ -23,7 +23,7 @@ func init() {
 	// User commands
 	rootCmd.AddCommand(user.Cmd)
 	// Resource commands
-	rootCmd.AddCommand(resource.Cmd)
+	rootCmd.AddCommand(source.Cmd)
 	rootCmd.AddCommand(migrate.Cmd)
 	rootCmd.AddCommand(importcmd.Cmd)
 }

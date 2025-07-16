@@ -13,6 +13,7 @@ message CVESource {
   string url = 4;
   bool enabled = 5;
   string created_at = 6;
+  string description = 7;
 }
 
 message CreateCVESourceRequest {

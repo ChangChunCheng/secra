@@ -13,6 +13,8 @@ func RegisterServices(server *grpc.Server) {
 
 	// Register Vendor service
 	secra_v1.RegisterVendorServiceServer(server, &VendorServiceHandler{})
+	// Register CVE Source service
+	secra_v1.RegisterCVESourceServiceServer(server, &CVESourceServiceHandler{})
 
 	// Register User service
 	secra_v1.RegisterUserServiceServer(server, &UserServiceHandler{})

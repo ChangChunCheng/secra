@@ -1,4 +1,4 @@
-package resource
+package source
 
 import (
 	"context"
@@ -9,6 +9,7 @@ import (
 	secra_v1 "gitlab.com/jacky850509/secra/api/gen/v1"
 	"gitlab.com/jacky850509/secra/internal/config"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 var deleteVendorCmd = &cobra.Command{
@@ -16,7 +17,7 @@ var deleteVendorCmd = &cobra.Command{
 	Short: "Delete a vendor",
 	Run: func(cmd *cobra.Command, args []string) {
 		cfg := config.Load()
-		conn, err := grpc.Dial(cfg.GRPCPort, grpc.WithInsecure())
+		conn, err := grpc.NewClient(cfg.GRPCPort, grpc.WithTransportCredentials(insecure.NewCredentials()))
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "connect error: %v\n", err)
 			os.Exit(1)
