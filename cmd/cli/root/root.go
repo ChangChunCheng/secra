@@ -14,10 +14,16 @@ import (
 	"gitlab.com/jacky850509/secra/internal/config"
 )
 
+var rawVersion bool
+
 var versionCmd = &cobra.Command{
 	Use:   "version",
 	Short: "Print the detailed version and build information of Secra",
 	Run: func(cmd *cobra.Command, args []string) {
+		if rawVersion {
+			fmt.Print(config.Version)
+			return
+		}
 		fmt.Printf("Secra Vulnerability Platform\n")
 		fmt.Printf("----------------------------\n")
 		fmt.Printf("Version:    %s\n", config.Version)
@@ -41,6 +47,7 @@ func Execute() error {
 }
 
 func init() {
+	versionCmd.Flags().BoolVar(&rawVersion, "raw", false, "Print only the version string")
 	rootCmd.AddCommand(versionCmd)
 	rootCmd.AddCommand(user.Cmd)
 	rootCmd.AddCommand(resource.Cmd)

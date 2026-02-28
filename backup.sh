@@ -19,16 +19,16 @@ if [ ! "$(docker ps -q -f name=${CONTAINER_NAME})" ]; then
     exit 1
 fi
 
-# Fetch version dynamically from the CLI
-VERSION=$(docker compose exec web secra version | tr -d '\r')
+# Fetch version dynamically using --raw flag
+VERSION=$(docker compose exec web secra version --raw | tr -d '\r')
 TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
 
 mkdir -p "$OUT_DIR"
-FILENAME="secra_v${VERSION}_${TIMESTAMP}.tar.gz"
+FILENAME="secra_${VERSION}_${TIMESTAMP}.tar.gz"
 TMP_PATH="/tmp/${FILENAME}"
 FINAL_PATH="${OUT_DIR}/${FILENAME}"
 
-echo "📦 Initializing backup for version v${VERSION}..."
+echo "📦 Initializing backup for version ${VERSION}..."
 docker compose exec web secra backup create -o "${TMP_PATH}"
 
 echo "🚚 Copying backup to host: ${FINAL_PATH}"
