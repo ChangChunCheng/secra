@@ -1,76 +1,78 @@
-# Secra
+# Secra: Vulnerability Intelligence Platform
 
-Secra 是一個模組化的 CVE 漏洞資料平台，支援多來源同步、自定義通報、訂閱通知與可擴充模組架構。
+Secra 是一個專業級的 CVE 漏洞情報監控平台，支援 NVD 自動同步、多維度訂閱通知、以及高性能的資安數據可視化儀表板。
 
-## 架構特色
+## 🚀 核心功能
 
-- 使用 Golang + Bun ORM 開發
-- 支援 PostgreSQL 儲存
-- 支援 CLI / gRPC / REST API 操作
-- 可整合 NVD、RedHat、JPCERT 等來源
-- 擴充性強，可接 webhook 或風險分析模組
+*   **智能 NVD 同步**：支援 NVD API v2 的高效同步，具備「區間感應」斷點續傳機制與自動節流重試。
+*   **科技感 Web UI**：採用 Cyberpunk 深色風格設計，提供全域與個人化的監控儀表板。
+*   **複合式搜尋**：支援關鍵字、廠商、產品及日期區間的多條件交叉查詢。
+*   **資產訂閱系統**：可針對特定廠商 (Vendor) 或產品 (Product) 進行情報追蹤。
+*   **原生備份還原**：基於 Parquet 列式儲存格式的高壓縮比備份方案。
+*   **強健的架構**：整合 gRPC 與 REST API，支援 Docker 一鍵部署與健康監控。
 
-## 快速開始
+## 🛠 快速開始
 
-```{bash}
-git clone git@gitlab.com:jacky850509/secra.git
-cd secra
-go run cmd/cli/secra.go
+### 1. 啟動環境 (Docker 一鍵啟動)
+確保您已安裝 Docker 與 Docker Compose，然後執行：
+```bash
+docker compose up -d --build
+```
+啟動後可訪問：[http://localhost:8081](http://localhost:8081)
+
+### 2. 初始化資料庫
+在容器啟動後執行資料庫遷移：
+```bash
+docker exec -it secra-web secra migrate up
+```
+
+### 3. 建立管理員帳號
+```bash
+docker exec -it secra-web secra user register --username admin --email admin@secra.io --password adminpassword
+```
+
+## 📖 CLI 指令說明
+
+Secra 提供強大的 CLI 工具，可直接在 `web` 容器內執行：
+
+### 情報匯入 (NVD v2)
+```bash
+# 自動補齊缺失區間
+docker exec -it secra-web secra import nvd v2 --start 2025-01-01
+
+# 強制重新匯入特定日期
+docker exec -it secra-web secra import nvd v2 --start 2026-02-28 -f
+```
+
+### 系統備份與還原 (Parquet 格式)
+```bash
+# 建立備份
+docker exec -it secra-web secra backup create -o /app/backup.tar.gz
+
+# 執行還原
+docker exec -it secra-web secra backup restore /app/backup.tar.gz
+```
+
+### 健康檢查
+```bash
+docker exec -it secra-web secra health check --type=db
+```
+
+## 🏗 技術架構
+
+*   **Backend**: Go 1.25, Bun ORM, gRPC, gRPC-Gateway.
+*   **Database**: PostgreSQL 15.
+*   **Frontend**: Go html/template, Vanilla CSS, Chart.js.
+*   **Storage**: Parquet (for backups).
+*   **Deployment**: Docker (Distroless runtime for security).
+
+## 🧪 測試
+
+系統包含完整的 E2E 測試，確保 Web UI 功能正常：
+```bash
+cd tests/e2e
+uv run pytest test_web_ui.py
 ```
 
 ---
-
-## 目錄結構
-
-```{bash}
-secra/
-├── cmd/
-│   ├── cli/         # CLI command 定義
-│   │   ├── secra.go
-│   │   └── root/
-│   │       └── root.go
-│   └── cron/        # 未來排程用 CLI 入口
-├── internal/
-│   ├── model/       # 資料表 ORM 定義
-## 啟動 gRPC 伺服器
-
-在使用 CLI 的 `create-vendor` 等 gRPC 相關命令前，需先啟動 gRPC 伺服器：
-
-```bash
-go run cmd/server/grpc_server/register.go
-```
-│   ├── db/          # 資料庫初始化
-│   ├── fetcher/     # 抓取來源資料(如 NVD)
-│   ├── parser/      # 解壓與解析 JSON
-│   ├── importer/    # 將資料寫入資料庫
-│   └── api/         # bunrouter REST API(未來)
-├── migrations/      # SQL 建表
-├── data/            # 原始 JSON.gz 儲存路徑
-└── README.md
-```
-
-## 使用者註冊與 OAuth2 登入
-
-1. 重新產生 gRPC Stub  
-   ```bash
-   protoc --go_out=api/gen --go-grpc_out=api/gen api/proto/v1/user.proto
-   ```
-
-2. 啟動 gRPC 伺服器  
-   ```bash
-   go run cmd/server/grpc_server/main.go
-   ```
-
-3. 測試 REST 端點  
-   - 系統註冊  
-     ```bash
-     curl -X POST http://localhost:8080/v1/users/register \
-       -H "Content-Type: application/json" \
-       -d '{"username":"alice","email":"alice@example.com","password_hash":"<hashed>"}'
-     ```  
-   - OAuth2 登入  
-     ```bash
-     curl -X POST http://localhost:8080/v1/oauth/login \
-       -H "Content-Type: application/json" \
-       -d '{"provider":"github","provider_user_id":"12345","email":"alice@example.com"}'
-     ```  
+*SECRA System &copy; 2026. Secure Vulnerability Intelligence Platform.*
