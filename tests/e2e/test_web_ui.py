@@ -62,14 +62,48 @@ def test_protected_routes_redirect(page: Page):
     page.goto(f"{BASE_URL}/my/dashboard")
     expect(page).to_have_url(f"{BASE_URL}/login")
 
-def test_cve_list_and_detail(page: Page):
+def test_cve_creation(page: Page):
+    # Login first
+    page.goto(f"{BASE_URL}/login")
+    page.fill('input[name="username"]', "admin")
+    page.fill('input[name="password"]', "adminpassword")
+    page.click('button:has-text("Login")')
+
+    # Go to new CVE page
+    page.goto(f"{BASE_URL}/cves/new")
+    import time
+    # Timestamp is 10 digits, need to keep total under 16. Prefix 'T-' is 2 chars.
+    cve_id = f"T-{int(time.time())}"
+    page.fill('input[name="source_uid"]', cve_id)
+    page.fill('input[name="title"]', "E2E Test Vulnerability")
+    page.fill('textarea[name="description"]', "This is a vulnerability created by E2E test.")
+    page.select_option('select[name="severity"]', "CRITICAL")
+    page.fill('input[name="cvss_score"]', "9.8")
+    page.click('button:has-text("Publish CVE")')
+
+    # Should redirect to detail page
+    expect(page.locator(f"h2:has-text('{cve_id}')")).to_be_visible()
+    expect(page.locator("text=CRITICAL (Score: 9.8)")).to_be_visible()
+
+def test_product_subscription(page: Page):
+    # Login
+    page.goto(f"{BASE_URL}/login")
+    page.fill('input[name="username"]', "admin")
+    page.fill('input[name="password"]', "adminpassword")
+    page.click('button:has-text("Login")')
+
+    # Go to a CVE with products
     page.goto(f"{BASE_URL}/cves")
-    expect(page.locator("text=CVE Intelligence Explorer")).to_be_visible()
-    
-    # Click on the first CVE link if any exist
+    # Find first CVE link and go to detail
     first_cve = page.locator("table tbody tr td a").first
-    if first_cve.count() > 0:
-        cve_id = first_cve.inner_text()
-        first_cve.click()
-        expect(page.locator(f"h2:has-text('{cve_id}')")).to_be_visible()
-        expect(page.locator("text=Affected Products")).to_be_visible()
+    first_cve.click()
+
+    # Check if there's a subscribe button
+    subscribe_btn = page.locator('button:has-text("Subscribe")').first
+    if subscribe_btn.count() > 0:
+        subscribe_btn.click()
+        # Should stay on page or redirect back
+        # Go to My Dashboard to verify
+        page.goto(f"{BASE_URL}/my/dashboard")
+        expect(page.locator("text=Active Subscriptions")).to_be_visible()
+        expect(page.locator("table tbody tr")).to_have_count(1, timeout=10000)

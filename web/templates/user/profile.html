@@ -1,0 +1,24 @@
+{{ define "content" }}
+<div class="card" style="max-width: 600px; margin: 20px auto;">
+    <h2>User Profile</h2>
+    <div style="margin-top: 20px;">
+        <p><strong>Username:</strong> {{ .User.Username }}</p>
+        <p><strong>Email:</strong> {{ .User.Email }}</p>
+        <p><strong>Role:</strong> <span class="badge {{ if eq .User.Role "admin" }}high{{ else }}medium{{ end }}">{{ .User.Role }}</span></p>
+        <p><strong>Account Status:</strong> {{ .User.Status }}</p>
+    </div>
+    
+    <div style="margin-top: 30px; border-top: 1px solid var(--border-color); padding-top: 20px;">
+        <h3>Update Profile</h3>
+        <form action="/profile" method="POST">
+            <label for="email">New Email</label>
+            <input type="email" name="email" value="{{ .User.Email }}" required>
+            
+            <label for="password">New Password (leave blank to keep current)</label>
+            <input type="password" name="password" placeholder="New password">
+            
+            <button type="submit" class="btn">Update Profile</button>
+        </form>
+    </div>
+</div>
+{{ end }}
