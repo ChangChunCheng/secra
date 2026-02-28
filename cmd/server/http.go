@@ -61,8 +61,9 @@ func main() {
 		port = ":8081"
 	}
 
-	log.Printf("🚀 Combined HTTP Server (API + Web UI) starting on %s...", port)
-	if err := http.ListenAndServe(port, mainHandler); err != nil {
+	addr := "127.0.0.1" + port
+	log.Printf("🚀 Combined HTTP Server (API + Web UI) starting on %s...", addr)
+	if err := http.ListenAndServe(addr, mainHandler); err != nil {
 		log.Fatalf("❌ Failed to start HTTP server: %v", err)
 	}
 }

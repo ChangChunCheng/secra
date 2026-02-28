@@ -6,7 +6,6 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/golang-jwt/jwt/v4"
 	"github.com/uptrace/bun"
 
 	"gitlab.com/jacky850509/secra/internal/config"
@@ -60,6 +59,8 @@ func (s *Server) render(w http.ResponseWriter, r *http.Request, tmpl string, dat
 	// Inject current user into all templates
 	if user, ok := s.getUserFromSession(r); ok {
 		data["User"] = user
+	} else {
+		data["User"] = nil
 	}
 
 	t, err := template.New("layout.html").Funcs(template.FuncMap{
@@ -116,29 +117,7 @@ func (s *Server) getUserFromSession(r *http.Request) (*model.User, bool) {
 		return nil, false
 	}
 
-	// Validate JWT
-	token, err := jwt.Parse(cookie.Value, func(token *jwt.Token) (interface{}, error) {
-		return s.cfg.JWTConfig.Secret, nil
-	})
-	if err != nil || !token.Valid {
-		return nil, false
-	}
-
-	claims, ok := token.Claims.(jwt.MapClaims)
-	if !ok {
-		return nil, false
-	}
-
-	// For simplicity, we just return a partial user object from claims
-	// Or we could fetch from DB if needed
-	sub, ok := claims["sub"].(string)
-	if !ok {
-		return nil, false
-	}
-	
-	// Try to get user from DB
-	user := new(model.User)
-	err = s.db.NewSelect().Model(user).Where("username = ?", sub).Scan(r.Context())
+	user, err := s.userSvc.GetProfile(r.Context(), cookie.Value)
 	if err != nil {
 		return nil, false
 	}
