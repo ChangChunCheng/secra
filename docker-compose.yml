@@ -22,7 +22,7 @@ services:
     build:
       context: .
       args:
-        VERSION: "0.1.0"
+        VERSION: "${APP_VERSION:-dev}"
         BUILD_DATE: "${BUILD_DATE:-unknown}"
         GIT_COMMIT: "${GIT_COMMIT:-none}"
         BUILT_BY: "${HOSTNAME:-unknown}"
@@ -42,7 +42,7 @@ services:
     build:
       context: .
       args:
-        VERSION: "0.1.0"
+        VERSION: "${APP_VERSION:-dev}"
         BUILD_DATE: "${BUILD_DATE:-unknown}"
         GIT_COMMIT: "${GIT_COMMIT:-none}"
         BUILT_BY: "${HOSTNAME:-unknown}"
