@@ -46,15 +46,35 @@ var v2Nvd = &cobra.Command{
 		if end.Before(start) {
 			log.Fatalf("❌ --end must be after --start")
 		}
-		if end.Sub(start) > 30*24*time.Hour {
-			log.Fatalf("❌ Date range must not exceed 30 days")
-		}
 
-		ImportNvdv2(start, end)
+		// Chunked import for large date ranges
+		// NVD API v2 allows max 120 days, but we use 30 days to keep memory usage low
+		chunkSize := 30 * 24 * time.Hour
+		for currentStart := start; currentStart.Before(end); {
+			currentEnd := currentStart.Add(chunkSize)
+			if currentEnd.After(end) {
+				currentEnd = end
+			}
+
+			log.Printf("📅 Processing chunk: %s to %s", currentStart.Format(time.DateOnly), currentEnd.Format(time.DateOnly))
+			ImportNvdv2Chunk(currentStart, currentEnd)
+
+			currentStart = currentEnd
+			// Add a delay between chunks to respect Rate Limit
+			// NVD recommends 6 seconds without API key, or less with key
+			if currentStart.Before(end) {
+				delay := 6 * time.Second
+				if apiKey != "" {
+					delay = 1 * time.Second
+				}
+				log.Printf("Waiting %v before next chunk...", delay)
+				time.Sleep(delay)
+			}
+		}
 	},
 }
 
-func ImportNvdv2(start, end time.Time) {
+func ImportNvdv2Chunk(start, end time.Time) {
 	cfg = config.Load()
 	db = storage.NewDB(cfg.PostgresDSN, false)
 	defer db.Close()
@@ -137,6 +157,10 @@ func ImportNvdv2(start, end time.Time) {
 			log.Println("✅ All pages fetched.")
 			break
 		}
+		// Delay between pages if no API key
+		if apiKey == "" {
+			time.Sleep(1 * time.Second)
+		}
 	}
 
 	// Step 1: Insert CVEs
@@ -203,5 +227,5 @@ func ImportNvdv2(start, end time.Time) {
 		log.Fatalf("❌ Failed to import weaknesses: %v", err)
 	}
 
-	log.Println("✅ NVD v2 Import fully complete.")
+	log.Println("✅ NVD v2 Import fully complete for this chunk.")
 }
