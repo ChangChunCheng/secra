@@ -1,33 +1,30 @@
-package grpc_server
+package cvesource
 
 import (
 	"context"
 	"time"
 
 	secra_v1 "gitlab.com/jacky850509/secra/api/gen/v1"
-	"gitlab.com/jacky850509/secra/internal/config"
 	"gitlab.com/jacky850509/secra/internal/model"
-	"gitlab.com/jacky850509/secra/internal/repo"
 	"gitlab.com/jacky850509/secra/internal/service"
-	"gitlab.com/jacky850509/secra/internal/storage"
 	emptypb "google.golang.org/protobuf/types/known/emptypb"
 )
 
-// CVESourceServiceHandler implements secra_v1.CVESourceServiceServer.
-type CVESourceServiceHandler struct {
+// Handler implements secra_v1.CVESourceServiceServer.
+type Handler struct {
 	secra_v1.UnimplementedCVESourceServiceServer
+	cveSourceService service.CveSourceServicer
+}
+
+// NewHandler creates a new Handler.
+func NewHandler(svc service.CveSourceServicer) *Handler {
+	return &Handler{cveSourceService: svc}
 }
 
 // CreateCVESource creates a new CVE source.
-func (h *CVESourceServiceHandler) CreateCVESource(ctx context.Context, req *secra_v1.CreateCVESourceRequest) (*secra_v1.CVESource, error) {
-	cfg := config.Load()
-	db := storage.NewDB(cfg.PostgresDSN, false)
-
-	srcRepo := repo.NewCVESourceRepo(db.DB)
-	srcSvc := service.NewCveSourceService(srcRepo)
-
+func (h *Handler) CreateCVESource(ctx context.Context, req *secra_v1.CreateCVESourceRequest) (*secra_v1.CVESource, error) {
 	in := req.GetSource()
-	created, err := srcSvc.Create(ctx, in.GetName(), in.GetUrl(), in.GetType(), in.GetDescription())
+	created, err := h.cveSourceService.Create(ctx, in.GetName(), in.GetUrl(), in.GetType(), in.GetDescription())
 	if err != nil {
 		return nil, err
 	}
@@ -44,14 +41,8 @@ func (h *CVESourceServiceHandler) CreateCVESource(ctx context.Context, req *secr
 }
 
 // GetCVESource retrieves a CVE source by ID.
-func (h *CVESourceServiceHandler) GetCVESource(ctx context.Context, req *secra_v1.GetCVESourceRequest) (*secra_v1.CVESource, error) {
-	cfg := config.Load()
-	db := storage.NewDB(cfg.PostgresDSN, false)
-
-	srcRepo := repo.NewCVESourceRepo(db.DB)
-	srcSvc := service.NewCveSourceService(srcRepo)
-
-	fetched, err := srcSvc.Get(ctx, req.GetId())
+func (h *Handler) GetCVESource(ctx context.Context, req *secra_v1.GetCVESourceRequest) (*secra_v1.CVESource, error) {
+	fetched, err := h.cveSourceService.Get(ctx, req.GetId())
 	if err != nil {
 		return nil, err
 	}
@@ -68,14 +59,8 @@ func (h *CVESourceServiceHandler) GetCVESource(ctx context.Context, req *secra_v
 }
 
 // ListCVESource returns a paginated list of CVE sources.
-func (h *CVESourceServiceHandler) ListCVESource(ctx context.Context, req *secra_v1.ListCVESourceRequest) (*secra_v1.ListCVESourceResponse, error) {
-	cfg := config.Load()
-	db := storage.NewDB(cfg.PostgresDSN, false)
-
-	srcRepo := repo.NewCVESourceRepo(db.DB)
-	srcSvc := service.NewCveSourceService(srcRepo)
-
-	items, err := srcSvc.List(ctx, int(req.GetLimit()), int(req.GetOffset()))
+func (h *Handler) ListCVESource(ctx context.Context, req *secra_v1.ListCVESourceRequest) (*secra_v1.ListCVESourceResponse, error) {
+	items, err := h.cveSourceService.List(ctx, int(req.GetLimit()), int(req.GetOffset()))
 	if err != nil {
 		return nil, err
 	}
@@ -99,13 +84,7 @@ func (h *CVESourceServiceHandler) ListCVESource(ctx context.Context, req *secra_
 }
 
 // UpdateCVESource modifies an existing CVE source.
-func (h *CVESourceServiceHandler) UpdateCVESource(ctx context.Context, req *secra_v1.UpdateCVESourceRequest) (*secra_v1.CVESource, error) {
-	cfg := config.Load()
-	db := storage.NewDB(cfg.PostgresDSN, false)
-
-	srcRepo := repo.NewCVESourceRepo(db.DB)
-	srcSvc := service.NewCveSourceService(srcRepo)
-
+func (h *Handler) UpdateCVESource(ctx context.Context, req *secra_v1.UpdateCVESourceRequest) (*secra_v1.CVESource, error) {
 	in := req.GetSource()
 	modelSrc := &model.CVESource{
 		ID:          in.GetId(),
@@ -115,7 +94,7 @@ func (h *CVESourceServiceHandler) UpdateCVESource(ctx context.Context, req *secr
 		Description: in.GetDescription(),
 		Enabled:     in.GetEnabled(),
 	}
-	updated, err := srcSvc.Update(ctx, modelSrc)
+	updated, err := h.cveSourceService.Update(ctx, modelSrc)
 	if err != nil {
 		return nil, err
 	}
@@ -132,14 +111,8 @@ func (h *CVESourceServiceHandler) UpdateCVESource(ctx context.Context, req *secr
 }
 
 // DeleteCVESource removes a CVE source by ID.
-func (h *CVESourceServiceHandler) DeleteCVESource(ctx context.Context, req *secra_v1.DeleteCVESourceRequest) (*emptypb.Empty, error) {
-	cfg := config.Load()
-	db := storage.NewDB(cfg.PostgresDSN, false)
-
-	srcRepo := repo.NewCVESourceRepo(db.DB)
-	srcSvc := service.NewCveSourceService(srcRepo)
-
-	if err := srcSvc.Delete(ctx, req.GetId()); err != nil {
+func (h *Handler) DeleteCVESource(ctx context.Context, req *secra_v1.DeleteCVESourceRequest) (*emptypb.Empty, error) {
+	if err := h.cveSourceService.Delete(ctx, req.GetId()); err != nil {
 		return nil, err
 	}
 	return &emptypb.Empty{}, nil

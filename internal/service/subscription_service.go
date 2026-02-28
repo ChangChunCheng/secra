@@ -9,6 +9,17 @@ import (
 	"gitlab.com/jacky850509/secra/internal/repo"
 )
 
+// SubscriptionServicer defines the interface for subscription operations.
+type SubscriptionServicer interface {
+	SeverityToString(level int16) string
+	CreateSubscription(ctx context.Context, userID string, targets []SubscriptionTarget, severity string) (*model.Subscription, error)
+	ListSubscriptions(ctx context.Context, userID string) ([]model.Subscription, error)
+	DeleteSubscription(ctx context.Context, userID string, subscriptionID string) error
+}
+
+// ensure SubscriptionService implements SubscriptionServicer
+var _ SubscriptionServicer = (*SubscriptionService)(nil)
+
 // SubscriptionService handles business logic for subscriptions.
 type SubscriptionService struct {
 	repo          *repo.SubscriptionRepository

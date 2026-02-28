@@ -16,6 +16,19 @@ import (
 	"google.golang.org/grpc/status"
 )
 
+// UserServicer defines the interface for user operations.
+type UserServicer interface {
+	CheckPassword(password string, confirmPassword string) (*string, error)
+	Register(ctx context.Context, username, email, password string, confirmPassword string) (*model.User, error)
+	OAuthLogin(ctx context.Context, provider, providerUserID, email string) (*model.User, error)
+	Login(ctx context.Context, username, password string) (string, int64, error)
+	GetProfile(ctx context.Context, token string) (*model.User, error)
+	UpdateProfile(ctx context.Context, token, email, password string, confirmPassword string) (*model.User, error)
+}
+
+// ensure UserService implements UserServicer
+var _ UserServicer = (*UserService)(nil)
+
 // UserService encapsulates user registration and OAuth login logic.
 type UserService struct {
 	repo *repo.UserRepository

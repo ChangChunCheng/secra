@@ -8,6 +8,19 @@ import (
 	"gitlab.com/jacky850509/secra/internal/repo"
 )
 
+// VendorServicer defines the interface for vendor operations.
+type VendorServicer interface {
+	Create(ctx context.Context, name string) (*model.Vendor, error)
+	Get(ctx context.Context, id string) (*model.Vendor, error)
+	List(ctx context.Context, limit, offset int) ([]model.Vendor, error)
+	Update(ctx context.Context, v *model.Vendor) (*model.Vendor, error)
+	Delete(ctx context.Context, id string) error
+}
+
+// ensure VendorService implements VendorServicer
+var _ VendorServicer = (*VendorService)(nil)
+
+
 // VendorService encapsulates vendor creation and management logic.
 type VendorService struct {
 	repo *repo.VendorRepo

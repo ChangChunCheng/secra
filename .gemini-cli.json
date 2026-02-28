@@ -1,0 +1,13 @@
+{
+    "agent": {
+        "allowed_shell_commands": [
+            "go",
+            "git",
+            "ls"
+        ],
+        "confirm_required_commands": [
+            "rm",
+            "mv"
+        ]
+    }
+}

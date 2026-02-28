@@ -8,6 +8,19 @@ import (
 	"gitlab.com/jacky850509/secra/internal/repo"
 )
 
+// ProductServicer defines the interface for product operations.
+type ProductServicer interface {
+	Create(ctx context.Context, vendorID, name string) (*model.Product, error)
+	Get(ctx context.Context, id string) (*model.Product, error)
+	List(ctx context.Context, limit, offset int) ([]model.Product, error)
+	Update(ctx context.Context, p *model.Product) (*model.Product, error)
+	Delete(ctx context.Context, id string) error
+}
+
+// ensure ProductService implements ProductServicer
+var _ ProductServicer = (*ProductService)(nil)
+
+
 // ProductService encapsulates product creation and management logic.
 type ProductService struct {
 	repo *repo.ProductRepo

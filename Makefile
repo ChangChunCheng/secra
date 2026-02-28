@@ -15,10 +15,7 @@ endif
 GO_REQUIRED := go1.24.5
 GO_CURRENT := $(shell go version | awk '{print $$3}')
 ifneq ($(GO_CURRENT),$(GO_REQUIRED))
-	$(warning Current Go version is $(GO_CURRENT); switching to $(GO_REQUIRED) via gvm)
-	# Load gvm and use required Go
-	# Requires gvm installed and configured
-	-@source ~/.gvm/scripts/gvm && gvm use $(GO_REQUIRED)
+$(warning Current Go version is $(GO_CURRENT). Recommended version is $(GO_REQUIRED).)
 endif
 
 # ----------------------------------------------------------------------------

@@ -8,6 +8,19 @@ import (
 	"gitlab.com/jacky850509/secra/internal/repo"
 )
 
+// CveServicer defines the interface for CVE operations.
+type CveServicer interface {
+	Create(ctx context.Context, _, sourceID, sourceUID, title, description string) (*model.CVE, error)
+	Get(ctx context.Context, id string) (*model.CVE, error)
+	List(ctx context.Context, limit, offset int) ([]*model.CVE, error)
+	Update(ctx context.Context, in *secra_v1.CVE) (*model.CVE, error)
+	Delete(ctx context.Context, id string) error
+}
+
+// ensure CveService implements CveServicer
+var _ CveServicer = (*CveService)(nil)
+
+
 // CveService handles CVE operations.
 type CveService struct {
 	repo *repo.CVERepo

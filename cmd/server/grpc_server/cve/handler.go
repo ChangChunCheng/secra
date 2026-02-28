@@ -1,32 +1,29 @@
-package grpc_server
+package cve
 
 import (
 	"context"
 	"time"
 
 	secra_v1 "gitlab.com/jacky850509/secra/api/gen/v1"
-	"gitlab.com/jacky850509/secra/internal/config"
-	"gitlab.com/jacky850509/secra/internal/repo"
 	"gitlab.com/jacky850509/secra/internal/service"
-	"gitlab.com/jacky850509/secra/internal/storage"
 	emptypb "google.golang.org/protobuf/types/known/emptypb"
 )
 
-// CVEServiceHandler implements secra_v1.CVEServiceServer.
-type CVEServiceHandler struct {
+// Handler implements secra_v1.CVEServiceServer.
+type Handler struct {
 	secra_v1.UnimplementedCVEServiceServer
+	cveService service.CveServicer
+}
+
+// NewHandler creates a new Handler.
+func NewHandler(svc service.CveServicer) *Handler {
+	return &Handler{cveService: svc}
 }
 
 // CreateCVE creates a new CVE entry.
-func (h *CVEServiceHandler) CreateCVE(ctx context.Context, req *secra_v1.CreateCVERequest) (*secra_v1.CVE, error) {
-	cfg := config.Load()
-	db := storage.NewDB(cfg.PostgresDSN, false)
-
-	cveRepo := repo.NewCVERepo(db.DB)
-	cveSvc := service.NewCveService(cveRepo)
-
+func (h *Handler) CreateCVE(ctx context.Context, req *secra_v1.CreateCVERequest) (*secra_v1.CVE, error) {
 	in := req.GetCve()
-	created, err := cveSvc.Create(ctx,
+	created, err := h.cveService.Create(ctx,
 		"", // let service generate ID
 		in.GetSourceId(),
 		in.GetSourceUid(),
@@ -59,14 +56,8 @@ func (h *CVEServiceHandler) CreateCVE(ctx context.Context, req *secra_v1.CreateC
 }
 
 // GetCVE retrieves a CVE by its ID.
-func (h *CVEServiceHandler) GetCVE(ctx context.Context, req *secra_v1.GetCVERequest) (*secra_v1.CVE, error) {
-	cfg := config.Load()
-	db := storage.NewDB(cfg.PostgresDSN, false)
-
-	cveRepo := repo.NewCVERepo(db.DB)
-	cveSvc := service.NewCveService(cveRepo)
-
-	fetched, err := cveSvc.Get(ctx, req.GetId())
+func (h *Handler) GetCVE(ctx context.Context, req *secra_v1.GetCVERequest) (*secra_v1.CVE, error) {
+	fetched, err := h.cveService.Get(ctx, req.GetId())
 	if err != nil {
 		return nil, err
 	}
@@ -93,14 +84,8 @@ func (h *CVEServiceHandler) GetCVE(ctx context.Context, req *secra_v1.GetCVERequ
 }
 
 // ListCVE returns a list of CVEs with pagination.
-func (h *CVEServiceHandler) ListCVE(ctx context.Context, req *secra_v1.ListCVERequest) (*secra_v1.ListCVEResponse, error) {
-	cfg := config.Load()
-	db := storage.NewDB(cfg.PostgresDSN, false)
-
-	cveRepo := repo.NewCVERepo(db.DB)
-	cveSvc := service.NewCveService(cveRepo)
-
-	items, err := cveSvc.List(ctx, int(req.GetLimit()), int(req.GetOffset()))
+func (h *Handler) ListCVE(ctx context.Context, req *secra_v1.ListCVERequest) (*secra_v1.ListCVEResponse, error) {
+	items, err := h.cveService.List(ctx, int(req.GetLimit()), int(req.GetOffset()))
 	if err != nil {
 		return nil, err
 	}
@@ -135,15 +120,9 @@ func (h *CVEServiceHandler) ListCVE(ctx context.Context, req *secra_v1.ListCVERe
 }
 
 // UpdateCVE modifies an existing CVE.
-func (h *CVEServiceHandler) UpdateCVE(ctx context.Context, req *secra_v1.UpdateCVERequest) (*secra_v1.CVE, error) {
-	cfg := config.Load()
-	db := storage.NewDB(cfg.PostgresDSN, false)
-
-	cveRepo := repo.NewCVERepo(db.DB)
-	cveSvc := service.NewCveService(cveRepo)
-
+func (h *Handler) UpdateCVE(ctx context.Context, req *secra_v1.UpdateCVERequest) (*secra_v1.CVE, error) {
 	in := req.GetCve()
-	updated, err := cveSvc.Update(ctx, in)
+	updated, err := h.cveService.Update(ctx, in)
 	if err != nil {
 		return nil, err
 	}
@@ -170,14 +149,8 @@ func (h *CVEServiceHandler) UpdateCVE(ctx context.Context, req *secra_v1.UpdateC
 }
 
 // DeleteCVE removes a CVE by ID.
-func (h *CVEServiceHandler) DeleteCVE(ctx context.Context, req *secra_v1.DeleteCVERequest) (*emptypb.Empty, error) {
-	cfg := config.Load()
-	db := storage.NewDB(cfg.PostgresDSN, false)
-
-	cveRepo := repo.NewCVERepo(db.DB)
-	cveSvc := service.NewCveService(cveRepo)
-
-	if err := cveSvc.Delete(ctx, req.GetId()); err != nil {
+func (h *Handler) DeleteCVE(ctx context.Context, req *secra_v1.DeleteCVERequest) (*emptypb.Empty, error) {
+	if err := h.cveService.Delete(ctx, req.GetId()); err != nil {
 		return nil, err
 	}
 	return &emptypb.Empty{}, nil

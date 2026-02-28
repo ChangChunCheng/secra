@@ -1,4 +1,4 @@
-package grpc_server
+package subscription
 
 import (
 	"context"
@@ -10,19 +10,19 @@ import (
 	"gitlab.com/jacky850509/secra/internal/service"
 )
 
-// SubscriptionHandler implements secra_v1.SubscriptionServiceServer.
-type SubscriptionHandler struct {
-	subService *service.SubscriptionService
+// Handler implements secra_v1.SubscriptionServiceServer.
+type Handler struct {
+	subService service.SubscriptionServicer
 	secra_v1.UnimplementedSubscriptionServiceServer
 }
 
-// NewSubscriptionHandler creates a new SubscriptionHandler.
-func NewSubscriptionHandler(subSvc *service.SubscriptionService) *SubscriptionHandler {
-	return &SubscriptionHandler{subService: subSvc}
+// NewHandler creates a new Handler.
+func NewHandler(subSvc service.SubscriptionServicer) *Handler {
+	return &Handler{subService: subSvc}
 }
 
 // CreateSubscription creates a new subscription.
-func (h *SubscriptionHandler) CreateSubscription(ctx context.Context, req *secra_v1.CreateSubscriptionRequest) (*secra_v1.CreateSubscriptionResponse, error) {
+func (h *Handler) CreateSubscription(ctx context.Context, req *secra_v1.CreateSubscriptionRequest) (*secra_v1.CreateSubscriptionResponse, error) {
 	targets := make([]service.SubscriptionTarget, len(req.Targets))
 	for i, t := range req.Targets {
 		targets[i] = service.SubscriptionTarget{
@@ -52,7 +52,7 @@ func (h *SubscriptionHandler) CreateSubscription(ctx context.Context, req *secra
 }
 
 // ListSubscriptions lists all subscriptions for a user.
-func (h *SubscriptionHandler) ListSubscriptions(ctx context.Context, req *secra_v1.ListSubscriptionsRequest) (*secra_v1.ListSubscriptionsResponse, error) {
+func (h *Handler) ListSubscriptions(ctx context.Context, req *secra_v1.ListSubscriptionsRequest) (*secra_v1.ListSubscriptionsResponse, error) {
 	subs, err := h.subService.ListSubscriptions(ctx, req.UserId)
 	if err != nil {
 		return nil, err
@@ -77,7 +77,7 @@ func (h *SubscriptionHandler) ListSubscriptions(ctx context.Context, req *secra_
 }
 
 // DeleteSubscription deletes a subscription.
-func (h *SubscriptionHandler) DeleteSubscription(ctx context.Context, req *secra_v1.DeleteSubscriptionRequest) (*emptypb.Empty, error) {
+func (h *Handler) DeleteSubscription(ctx context.Context, req *secra_v1.DeleteSubscriptionRequest) (*emptypb.Empty, error) {
 	if err := h.subService.DeleteSubscription(ctx /* userID from context? */, "", req.Id); err != nil {
 		return nil, err
 	}
