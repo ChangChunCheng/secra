@@ -1,0 +1,29 @@
+{{ define "content" }}
+<div class="card">
+    <h2>User Administration</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Username</th>
+                <th>Email</th>
+                <th>Role</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{ range .Users }}
+            <tr>
+                <td>{{ .ID }}</td>
+                <td>{{ .Username }}</td>
+                <td>{{ .Email }}</td>
+                <td>{{ .Role }}</td>
+                <td>
+                    <button class="btn" style="font-size: 0.7rem; color: var(--danger-color); border-color: var(--danger-color);">Deactivate</button>
+                </td>
+            </tr>
+            {{ end }}
+        </tbody>
+    </table>
+</div>
+{{ end }}

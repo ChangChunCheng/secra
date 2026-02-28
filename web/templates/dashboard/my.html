@@ -1,0 +1,43 @@
+{{ define "content" }}
+<div class="card">
+    <h2>My Subscription Dashboard</h2>
+    <p>Categorized intelligence based on your subscriptions.</p>
+</div>
+
+<div class="grid">
+    <div class="card">
+        <h3>Subscribed Vendors</h3>
+        <p>Total: 0</p>
+    </div>
+    <div class="card">
+        <h3>Subscribed Products</h3>
+        <p>Total: {{ len .Subscriptions }}</p>
+    </div>
+</div>
+
+<div class="card" style="margin-top: 20px;">
+    <h3>Active Subscriptions</h3>
+    {{ if .Subscriptions }}
+        <table>
+            <thead>
+                <tr>
+                    <th>Type</th>
+                    <th>Target ID</th>
+                    <th>Threshold</th>
+                </tr>
+            </thead>
+            <tbody>
+                {{ range .Subscriptions }}
+                <tr>
+                    <td>{{ .UserID }}</td> <!-- For now we don't have target info joined -->
+                    <td>{{ .ID }}</td>
+                    <td>{{ .SeverityThreshold }}</td>
+                </tr>
+                {{ end }}
+            </tbody>
+        </table>
+    {{ else }}
+        <p>You haven't subscribed to any products or vendors yet.</p>
+    {{ end }}
+</div>
+{{ end }}

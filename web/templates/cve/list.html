@@ -1,0 +1,34 @@
+{{ define "content" }}
+<div class="card">
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+        <h2>CVE Intelligence Explorer</h2>
+        <a href="/cves/new" class="btn">+ Add Custom CVE</a>
+    </div>
+    <table>
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Source UID</th>
+                <th>Title</th>
+                <th>Severity</th>
+                <th>Published</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{ range .CVEs }}
+            <tr>
+                <td>{{ .ID }}</td>
+                <td><a href="/cves/{{ .ID }}">{{ .SourceUID }}</a></td>
+                <td>{{ .Title }}</td>
+                <td>
+                    <span class="badge {{ if eq (derefString .Severity) "HIGH" }}high{{ else if eq (derefString .Severity) "MEDIUM" }}medium{{ else }}low{{ end }}">
+                        {{ derefString .Severity }}
+                    </span>
+                </td>
+                <td>{{ formatDate .PublishedAt }}</td>
+            </tr>
+            {{ end }}
+        </tbody>
+    </table>
+</div>
+{{ end }}

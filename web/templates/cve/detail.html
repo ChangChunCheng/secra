@@ -1,0 +1,45 @@
+{{ define "content" }}
+<div class="grid">
+    <div class="card" style="grid-column: span 2;">
+        <h2>{{ .CVE.SourceUID }}</h2>
+        <p style="color: var(--text-secondary); margin-bottom: 20px;">Source: {{ .CVE.SourceID }} | Published: {{ formatDate .CVE.PublishedAt }}</p>
+        
+        <div style="margin-bottom: 20px;">
+            <h3>Title</h3>
+            <p>{{ .CVE.Title }}</p>
+        </div>
+
+        <div style="margin-bottom: 20px;">
+            <h3>Description</h3>
+            <p>{{ .CVE.Description }}</p>
+        </div>
+
+        <div style="margin-bottom: 20px;">
+            <h3>Severity</h3>
+            <span class="badge {{ if eq (derefString .CVE.Severity) "HIGH" }}high{{ else if eq (derefString .CVE.Severity) "MEDIUM" }}medium{{ else }}low{{ end }}">
+                {{ derefString .CVE.Severity }} (Score: {{ .CVE.CVSSScore }})
+            </span>
+        </div>
+    </div>
+
+    <div class="card">
+        <h3>Affected Products</h3>
+        {{ if .Products }}
+            <ul>
+                {{ range .Products }}
+                <li style="margin-bottom: 10px; display: flex; justify-content: space-between;">
+                    <span>{{ .Name }} (Vendor ID: {{ .VendorID }})</span>
+                    <form action="/subscribe" method="POST" style="display:inline;">
+                        <input type="hidden" name="target_type" value="product">
+                        <input type="hidden" name="target_id" value="{{ .ID }}">
+                        <button type="submit" class="btn" style="font-size: 0.7rem; padding: 2px 5px;">Subscribe</button>
+                    </form>
+                </li>
+                {{ end }}
+            </ul>
+        {{ else }}
+            <p>No products linked.</p>
+        {{ end }}
+    </div>
+</div>
+{{ end }}

@@ -1,0 +1,81 @@
+{{ define "content" }}
+<div class="card">
+    <h2>System Overview</h2>
+    <p>Global vulnerability intelligence monitoring.</p>
+</div>
+
+<div class="grid">
+    <div class="card">
+        <h3>Total CVEs</h3>
+        <h1 style="font-size: 3rem; color: var(--accent-color);">{{ .TotalCVEs }}</h1>
+    </div>
+    <div class="card">
+        <h3>Tracked Vendors</h3>
+        <h1 style="font-size: 3rem; color: var(--accent-color);">{{ .TotalVendors }}</h1>
+    </div>
+    <div class="card">
+        <h3>Monitored Products</h3>
+        <h1 style="font-size: 3rem; color: var(--accent-color);">{{ .TotalProducts }}</h1>
+    </div>
+</div>
+
+<div class="card" style="margin-top: 20px;">
+    <h2>Recent CVE Trend (Last 7 Days)</h2>
+    <canvas id="cveChart" height="100"></canvas>
+</div>
+
+<div class="card" style="margin-top: 20px;">
+    <h2>Latest Vulnerabilities</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>CVE ID</th>
+                <th>Title</th>
+                <th>Severity</th>
+                <th>Published</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{ range .RecentCVEs }}
+            <tr>
+                <td><a href="/cves/{{ .ID }}">{{ .SourceUID }}</a></td>
+                <td>{{ .Title }}</td>
+                <td>
+                    <span class="badge {{ if eq (derefString .Severity) "HIGH" }}high{{ else if eq (derefString .Severity) "MEDIUM" }}medium{{ else }}low{{ end }}">
+                        {{ derefString .Severity }}
+                    </span>
+                </td>
+                <td>{{ .PublishedAt.Format "2006-01-02" }}</td>
+            </tr>
+            {{ end }}
+        </tbody>
+    </table>
+</div>
+
+<script>
+    const ctx = document.getElementById('cveChart').getContext('2d');
+    new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: [{{ range .ChartLabels }}'{{ . }}',{{ end }}],
+            datasets: [{
+                label: 'New CVEs',
+                data: [{{ range .ChartData }}{{ . }},{{ end }}],
+                borderColor: '#00ff41',
+                backgroundColor: 'rgba(0, 255, 65, 0.1)',
+                borderWidth: 2,
+                fill: true,
+                tension: 0.3
+            }]
+        },
+        options: {
+            responsive: true,
+            scales: {
+                y: { beginAtZero: true, grid: { color: '#30363d' }, ticks: { color: '#8b949e' } },
+                x: { grid: { color: '#30363d' }, ticks: { color: '#8b949e' } }
+            },
+            plugins: { legend: { labels: { color: '#c9d1d9' } } }
+        }
+    });
+</script>
+{{ end }}

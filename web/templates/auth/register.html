@@ -1,0 +1,20 @@
+{{ define "content" }}
+<div class="card" style="max-width: 400px; margin: 50px auto;">
+    <h2>Register Account</h2>
+    <form action="/register" method="POST">
+        <label for="username">Username</label>
+        <input type="text" name="username" required placeholder="Enter username">
+        
+        <label for="email">Email</label>
+        <input type="email" name="email" required placeholder="Enter email">
+        
+        <label for="password">Password</label>
+        <input type="password" name="password" required placeholder="Enter password">
+        
+        <button type="submit" class="btn" style="width: 100%;">Register</button>
+    </form>
+    <p style="margin-top: 15px; text-align: center; color: var(--text-secondary);">
+        Already have an account? <a href="/login">Login here</a>
+    </p>
+</div>
+{{ end }}
