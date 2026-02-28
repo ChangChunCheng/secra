@@ -1,7 +1,25 @@
 {{ define "content" }}
+<div class="card" style="margin-bottom: 20px;">
+    <h2>Search Products</h2>
+    <form action="/products" method="GET" style="display: grid; grid-template-columns: 1fr 1fr auto auto; gap: 15px; align-items: end;">
+        <div>
+            <label for="q">Product Name</label>
+            <input type="text" name="q" value="{{ .Search }}" placeholder="e.g. Windows, Chrome...">
+        </div>
+        <div>
+            <label for="vendor">Vendor Name</label>
+            <input type="text" name="vendor" value="{{ .Vendor }}" placeholder="e.g. Microsoft...">
+        </div>
+        <button type="submit" class="btn">Search</button>
+        <a href="/products" class="btn" style="border-color: var(--text-secondary); color: var(--text-secondary);">Reset</a>
+    </form>
+</div>
+
 <div class="card">
-    <h2>Monitored Products</h2>
-    <p style="color: var(--text-secondary); margin-bottom: 20px;">Follow specific products to receive targeted security updates.</p>
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+        <h2>Monitored Products</h2>
+        <span style="color: var(--text-secondary); font-size: 0.8rem;">Found {{ .TotalCount }} products | Page {{ .Page }} of {{ .TotalPages }}</span>
+    </div>
     <table>
         <thead>
             <tr>
@@ -26,5 +44,23 @@
             {{ end }}
         </tbody>
     </table>
+
+    <!-- Advanced Pagination -->
+    <div style="margin-top: 30px; display: flex; flex-direction: column; align-items: center; gap: 15px;">
+        <div style="display: flex; gap: 5px; align-items: center;">
+            {{ $search := .Search }}{{ $vendor := .Vendor }}{{ $currentPage := .Page }}{{ $totalPages := .TotalPages }}
+            {{ range .Pages }}
+                <a href="/products?page={{ . }}&q={{ $search }}&vendor={{ $vendor }}" 
+                   class="btn pag-btn {{ if eq . $currentPage }}active{{ end }}">
+                    {{ . }}
+                </a>
+            {{ end }}
+        </div>
+    </div>
 </div>
+
+<style>
+    .pag-btn { min-width: 35px; height: 35px; padding: 0 !important; display: flex !important; align-items: center; justify-content: center; font-size: 0.8rem; }
+    .pag-btn.active { background-color: var(--accent-color); color: var(--bg-color); border-color: var(--accent-color); box-shadow: 0 0 10px rgba(0, 255, 65, 0.3); }
+</style>
 {{ end }}

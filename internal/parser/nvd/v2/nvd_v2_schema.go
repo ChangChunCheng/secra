@@ -60,6 +60,7 @@ type Nvdv2CveCore struct {
 
 type Nvdv2CvssMetrics struct {
 	CvssMetricV31 []CvssV3Entry `json:"cvssMetricV31,omitempty"`
+	CvssMetricV30 []CvssV3Entry `json:"cvssMetricV30,omitempty"`
 	CvssMetricV2  []CvssV2Entry `json:"cvssMetricV2,omitempty"`
 }
 

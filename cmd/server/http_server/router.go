@@ -266,7 +266,7 @@ func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
 			Group("period").Order("period ASC").Scan(r.Context(), &rows)
 		
 		if err == nil {
-			for _, r := range rows { dateMap[r.Period.UTC().Format("2006-01-02")] = r.Count }
+			for _, r := range rows { dateMap[r.Period.Format("2006-01-02")] = r.Count }
 			for d := queryStart; !d.After(end); d = d.AddDate(0, 0, 7) {
 				ks := d.Format("2006-01-02")
 				labels = append(labels, ks)
@@ -280,7 +280,7 @@ func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
 			Order("period ASC").Scan(r.Context(), &rows)
 		
 		if err == nil {
-			for _, r := range rows { dateMap[r.Period.UTC().Format("2006-01-02")] = r.Count }
+			for _, r := range rows { dateMap[r.Period.Format("2006-01-02")] = r.Count }
 			for d := start; !d.After(end); d = d.AddDate(0, 0, 1) {
 				ks := d.Format("2006-01-02")
 				labels = append(labels, ks)
@@ -361,7 +361,7 @@ func (s *Server) handleCVEList(w http.ResponseWriter, r *http.Request) {
 		ColumnExpr("c.*, cs.name AS source_name").
 		ColumnExpr("STRING_AGG(DISTINCT v.name || ':' || p.name, ', ') AS assets").
 		Join("LEFT JOIN cve_sources cs ON cs.id = c.source_id").
-		Join("LEFT JOIN cve_products cp ON cp.cve_id = c.id").
+		Join("LEFT JOIN cve_products cp ON cp.product_id = c.id").
 		Join("LEFT JOIN products p ON p.id = cp.product_id").
 		Join("LEFT JOIN vendors v ON v.id = p.vendor_id")
 
@@ -391,7 +391,6 @@ func (s *Server) handleCVEList(w http.ResponseWriter, r *http.Request) {
 	totalPages := int(math.Ceil(float64(count) / float64(limit)))
 	if totalPages == 0 { totalPages = 1 }
 
-	// Calculate pagination range (Current +/- 2)
 	var pages []int
 	for i := 1; i <= totalPages; i++ {
 		if i == 1 || i == totalPages || (i >= page-2 && i <= page+2) {
@@ -468,23 +467,94 @@ func (s *Server) handleCVENew(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleVendorList(w http.ResponseWriter, r *http.Request) {
-	var vendors []model.Vendor
-	s.db.NewSelect().Model(&vendors).Order("name ASC").Limit(100).Scan(r.Context())
-	s.render(w, r, "vendor/list.html", map[string]interface{}{"Vendors": vendors})
+	q := r.URL.Query()
+	search := q.Get("q")
+	page, _ := strconv.Atoi(q.Get("page"))
+	if page < 1 { page = 1 }
+	limit := 50
+	offset := (page - 1) * limit
+
+	type vendorWithStats struct {
+		model.Vendor
+		ProductCount int `bun:"product_count"`
+	}
+	var results []vendorWithStats
+
+	query := s.db.NewSelect().
+		TableExpr("vendors AS v").
+		ColumnExpr("v.*, count(p.id) as product_count").
+		Join("LEFT JOIN products p ON p.vendor_id = v.id")
+
+	if search != "" {
+		query.Where("v.name ILIKE ?", "%"+search+"%")
+	}
+
+	count, _ := query.Group("v.id").Count(r.Context())
+	_ = query.Order("v.name ASC").Limit(limit).Offset(offset).Scan(r.Context(), &results)
+
+	totalPages := int(math.Ceil(float64(count) / float64(limit)))
+	if totalPages == 0 { totalPages = 1 }
+	var pages []int
+	for i := 1; i <= totalPages; i++ {
+		if i == 1 || i == totalPages || (i >= page-2 && i <= page+2) { pages = append(pages, i) }
+	}
+
+	s.render(w, r, "vendor/list.html", map[string]interface{}{
+		"Vendors":    results,
+		"Search":     search,
+		"Page":       page,
+		"TotalCount": count,
+		"TotalPages": totalPages,
+		"Pages":      pages,
+	})
 }
 
 func (s *Server) handleProductList(w http.ResponseWriter, r *http.Request) {
+	q := r.URL.Query()
+	search := q.Get("q")
+	vendorName := q.Get("vendor")
+	page, _ := strconv.Atoi(q.Get("page"))
+	if page < 1 { page = 1 }
+	limit := 50
+	offset := (page - 1) * limit
+
 	type productWithVendor struct {
 		model.Product
-		VendorName string
+		VendorName string `bun:"vendor_name"`
 	}
-	var products []productWithVendor
-	s.db.NewSelect().Model((*model.Product)(nil)).
-		ColumnExpr("product.*, v.name AS vendor_name").
-		Join("JOIN vendors v ON v.id = product.vendor_id").
-		Order("product.name ASC").Limit(100).
-		Scan(r.Context(), &products)
-	s.render(w, r, "product/list.html", map[string]interface{}{"Products": products})
+	var results []productWithVendor
+
+	query := s.db.NewSelect().
+		TableExpr("products AS p").
+		ColumnExpr("p.*, v.name AS vendor_name").
+		Join("JOIN vendors v ON v.id = p.vendor_id")
+
+	if search != "" {
+		query.Where("p.name ILIKE ?", "%"+search+"%")
+	}
+	if vendorName != "" {
+		query.Where("v.name ILIKE ?", "%"+vendorName+"%")
+	}
+
+	count, _ := query.Count(r.Context())
+	_ = query.Order("p.name ASC").Limit(limit).Offset(offset).Scan(r.Context(), &results)
+
+	totalPages := int(math.Ceil(float64(count) / float64(limit)))
+	if totalPages == 0 { totalPages = 1 }
+	var pages []int
+	for i := 1; i <= totalPages; i++ {
+		if i == 1 || i == totalPages || (i >= page-2 && i <= page+2) { pages = append(pages, i) }
+	}
+
+	s.render(w, r, "product/list.html", map[string]interface{}{
+		"Products":   results,
+		"Search":     search,
+		"Vendor":     vendorName,
+		"Page":       page,
+		"TotalCount": count,
+		"TotalPages": totalPages,
+		"Pages":      pages,
+	})
 }
 
 func (s *Server) handleMyDashboard(w http.ResponseWriter, r *http.Request) {
