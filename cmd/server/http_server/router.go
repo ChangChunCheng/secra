@@ -68,6 +68,8 @@ func (s *Server) render(w http.ResponseWriter, r *http.Request, tmpl string, dat
 		"formatDate": func(t time.Time) string {
 			return t.UTC().Format("2006-01-02T15:04:05Z")
 		},
+		"add": func(a, b int) int { return a + b },
+		"sub": func(a, b int) int { return a - b },
 	}).ParseFiles(
 		filepath.Join("web", "templates", "layout.html"),
 		filepath.Join("web", "templates", tmpl),
@@ -248,16 +250,70 @@ func (s *Server) handleProfile(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleCVEList(w http.ResponseWriter, r *http.Request) {
-	cves, _ := s.cveSvc.List(r.Context(), 50, 0)
-	var sources []model.CVESource
-	s.db.NewSelect().Model(&sources).Scan(r.Context())
-	sourceMap := make(map[string]string)
-	for _, src := range sources {
-		sourceMap[src.ID] = src.Name
+	q := r.URL.Query()
+	search := q.Get("q")
+	vendorName := q.Get("vendor")
+	productName := q.Get("product")
+	startDate := q.Get("start_date")
+	endDate := q.Get("end_date")
+	page, _ := strconv.Atoi(q.Get("page"))
+	if page < 1 { page = 1 }
+	limit := 50
+	offset := (page - 1) * limit
+
+	type cveWithAssets struct {
+		model.CVE
+		SourceName string `bun:"source_name"`
+		Assets     string `bun:"assets"`
 	}
+	var results []cveWithAssets
+
+	query := s.db.NewSelect().
+		TableExpr("cves AS c").
+		ColumnExpr("c.*, cs.name AS source_name").
+		ColumnExpr("STRING_AGG(DISTINCT v.name || ':' || p.name, ', ') AS assets").
+		Join("LEFT JOIN cve_sources cs ON cs.id = c.source_id").
+		Join("LEFT JOIN cve_products cp ON cp.cve_id = c.id").
+		Join("LEFT JOIN products p ON p.id = cp.product_id").
+		Join("LEFT JOIN vendors v ON v.id = p.vendor_id")
+
+	if search != "" {
+		query.Where("c.source_uid ILIKE ? OR c.title ILIKE ? OR c.description ILIKE ?", "%"+search+"%", "%"+search+"%", "%"+search+"%")
+	}
+	if vendorName != "" {
+		query.Where("v.name ILIKE ?", "%"+vendorName+"%")
+	}
+	if productName != "" {
+		query.Where("p.name ILIKE ?", "%"+productName+"%")
+	}
+	if startDate != "" {
+		if t, err := time.Parse("2006-01-02", startDate); err == nil {
+			query.Where("c.published_at >= ?", t)
+		}
+	}
+	if endDate != "" {
+		if t, err := time.Parse("2006-01-02", endDate); err == nil {
+			query.Where("c.published_at <= ?", t.Add(24*time.Hour))
+		}
+	}
+
+	count, _ := query.Group("c.id", "cs.name").Count(r.Context())
+	err := query.Order("c.published_at DESC").Limit(limit).Offset(offset).Scan(r.Context(), &results)
+	if err != nil {
+		log.Printf("Query error: %v", err)
+	}
+
 	s.render(w, r, "cve/list.html", map[string]interface{}{
-		"CVEs":      cves,
-		"SourceMap": sourceMap,
+		"CVEs":       results,
+		"Search":     search,
+		"Vendor":     vendorName,
+		"Product":    productName,
+		"StartDate":  startDate,
+		"EndDate":    endDate,
+		"Page":       page,
+		"TotalCount": count,
+		"HasNext":    (offset + limit) < count,
+		"HasPrev":    page > 1,
 	})
 }
 

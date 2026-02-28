@@ -1,7 +1,37 @@
 {{ define "content" }}
+<div class="card" style="margin-bottom: 20px;">
+    <h2>CVE Advanced Search</h2>
+    <form action="/cves" method="GET" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; align-items: end;">
+        <div>
+            <label for="q">Keyword / CVE ID</label>
+            <input type="text" name="q" value="{{ .Search }}" placeholder="e.g. CVE-2026 or XSS">
+        </div>
+        <div>
+            <label for="vendor">Vendor</label>
+            <input type="text" name="vendor" value="{{ .Vendor }}" placeholder="e.g. Microsoft">
+        </div>
+        <div>
+            <label for="product">Product</label>
+            <input type="text" name="product" value="{{ .Product }}" placeholder="e.g. Windows">
+        </div>
+        <div>
+            <label for="start_date">From Date</label>
+            <input type="date" name="start_date" value="{{ .StartDate }}">
+        </div>
+        <div>
+            <label for="end_date">To Date</label>
+            <input type="date" name="end_date" value="{{ .EndDate }}">
+        </div>
+        <div style="display: flex; gap: 10px;">
+            <button type="submit" class="btn" style="flex: 1;">Search</button>
+            <a href="/cves" class="btn" style="border-color: var(--text-secondary); color: var(--text-secondary);">Reset</a>
+        </div>
+    </form>
+</div>
+
 <div class="card">
-    <div style="display: flex; justify-content: space-between; align-items: center;">
-        <h2>CVE Intelligence Explorer</h2>
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+        <h2>CVE Intelligence Feed (Page {{ .Page }})</h2>
         <a href="/cves/new" class="btn">+ Add Custom CVE</a>
     </div>
     <table>
@@ -9,18 +39,21 @@
             <tr>
                 <th>Source</th>
                 <th>CVE ID</th>
-                <th>Title</th>
+                <th>Affected Assets (Vendor:Product)</th>
                 <th>Severity</th>
                 <th>Published (UTC)</th>
             </tr>
         </thead>
         <tbody>
-            {{ $sourceMap := .SourceMap }}
             {{ range .CVEs }}
             <tr>
-                <td><span class="badge low">{{ index $sourceMap .SourceID }}</span></td>
+                <td><span class="badge low">{{ .SourceName }}</span></td>
                 <td><a href="/cves/{{ .ID }}"><strong>{{ .SourceUID }}</strong></a></td>
-                <td>{{ .Title }}</td>
+                <td style="max-width: 300px;">
+                    <div style="font-size: 0.8rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="{{ .Assets }}">
+                        {{ if .Assets }}{{ .Assets }}{{ else }}<span style="color: var(--text-secondary); font-style: italic;">No assets linked</span>{{ end }}
+                    </div>
+                </td>
                 <td>
                     <span class="badge {{ if eq (derefString .Severity) "HIGH" }}high{{ else if eq (derefString .Severity) "MEDIUM" }}medium{{ else }}low{{ end }}">
                         {{ derefString .Severity }}
@@ -31,5 +64,21 @@
             {{ end }}
         </tbody>
     </table>
+
+    <div style="margin-top: 25px; display: flex; justify-content: center; gap: 20px; align-items: center;">
+        {{ if .HasPrev }}
+            <a href="/cves?page={{ sub .Page 1 }}&q={{ .Search }}&vendor={{ .Vendor }}&product={{ .Product }}&start_date={{ .StartDate }}&end_date={{ .EndDate }}" class="btn">← Previous</a>
+        {{ else }}
+            <span class="btn" style="opacity: 0.3; cursor: not-allowed;">← Previous</span>
+        {{ end }}
+        
+        <span style="color: var(--text-secondary); font-weight: bold;">Page {{ .Page }}</span>
+
+        {{ if .HasNext }}
+            <a href="/cves?page={{ add .Page 1 }}&q={{ .Search }}&vendor={{ .Vendor }}&product={{ .Product }}&start_date={{ .StartDate }}&end_date={{ .EndDate }}" class="btn">Next →</a>
+        {{ else }}
+            <span class="btn" style="opacity: 0.3; cursor: not-allowed;">Next →</span>
+        {{ end }}
+    </div>
 </div>
 {{ end }}

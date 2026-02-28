@@ -66,6 +66,15 @@ def test_vendor_and_product_lists(page: Page):
     page.goto(f"{BASE_URL}/products")
     expect(page.locator("text=Monitored Products")).to_be_visible()
 
+def test_pagination(page: Page):
+    page.goto(f"{BASE_URL}/cves")
+    expect(page.get_by_role("heading", name="CVE Intelligence Feed (Page 1)")).to_be_visible()
+    
+    next_btn = page.locator('text=Next →')
+    if next_btn.is_visible() and next_btn.is_enabled():
+        next_btn.click()
+        expect(page.get_by_role("heading", name="CVE Intelligence Feed (Page 2)")).to_be_visible()
+
 def test_protected_routes_redirect(page: Page):
     # Try to access dashboard without login
     page.goto(f"{BASE_URL}/my/dashboard")
