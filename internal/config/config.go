@@ -1,4 +1,3 @@
-// internal/config/config.go
 package config
 
 import (
@@ -9,54 +8,60 @@ import (
 	"github.com/joho/godotenv"
 )
 
+// Build information (Injected via -ldflags)
+var (
+	Version   = "dev"
+	BuildDate = "unknown"
+	Commit    = "none"
+	BuiltBy   = "unknown"
+	OS        = "unknown"
+	Arch      = "unknown"
+)
+
+type JWTConfig struct {
+	Secret string
+	Expiry time.Duration
+}
+
 type AppConfig struct {
 	GRPCPort    string
 	HTTPPort    string
 	PostgresDSN string
 	NvdURLv1    string
 	NvdURLv2    string
-	NvdAPIKey   string
 
-	// NVD Fetching configs
+	JWTConfig JWTConfig
+
 	NvdMaxRetries int
 	NvdRetryDelay time.Duration
-
-	JWTConfig struct {
-		Secret []byte
-		Expiry time.Duration
-	}
+	NvdAPIKey     string
 }
 
 func Load() *AppConfig {
 	_ = godotenv.Load()
 
-	maxRetries, _ := strconv.Atoi(getenv("NVD_MAX_RETRIES", "3"))
-	retryDelaySec, _ := strconv.Atoi(getenv("NVD_RETRY_DELAY_SECONDS", "5"))
+	maxRetries, _ := strconv.Atoi(getEnv("NVD_MAX_RETRIES", "5"))
+	retryDelaySec, _ := strconv.Atoi(getEnv("NVD_RETRY_DELAY_SECONDS", "10"))
 
 	return &AppConfig{
-		GRPCPort:    getenv("GRPC_PORT", ":50051"),
-		HTTPPort:    getenv("HTTP_PORT", ":8080"),
-		PostgresDSN: getenv("POSTGRES_DSN", "postgres://postgres:postgres@localhost:5432/secra?sslmode=disable"),
-		NvdURLv1:    getenv("NVD_URL_V1", "https://nvd.nist.gov/feeds/json/cve/1.1/"),
-		NvdURLv2:    getenv("NVD_URL_V2", "https://services.nvd.nist.gov/rest/json/cves/2.0/"),
-		NvdAPIKey:   getenv("NVD_API_KEY", ""),
-
-		NvdMaxRetries: maxRetries,
-		NvdRetryDelay: time.Duration(retryDelaySec) * time.Second,
-
-		JWTConfig: struct {
-			Secret []byte
-			Expiry time.Duration
-		}{
-			Secret: []byte(getenv("JWT_SECRET", "default_secret")),
+		GRPCPort:    getEnv("GRPC_PORT", ":50051"),
+		HTTPPort:    getEnv("HTTP_PORT", ":8081"),
+		PostgresDSN: getEnv("POSTGRES_DSN", "postgres://postgres:postgres@localhost:5432/secra?sslmode=disable"),
+		NvdURLv1:    getEnv("NVD_URL_V1", "https://nvd.nist.gov/feeds/json/cve/1.1/"),
+		NvdURLv2:    getEnv("NVD_URL_V2", "https://services.nvd.nist.gov/rest/json/cves/2.0/"),
+		JWTConfig: JWTConfig{
+			Secret: getEnv("JWT_SECRET", "super-secret-key"),
 			Expiry: 24 * time.Hour,
 		},
+		NvdMaxRetries: maxRetries,
+		NvdRetryDelay: time.Duration(retryDelaySec) * time.Second,
+		NvdAPIKey:     getEnv("NVD_API_KEY", ""),
 	}
 }
 
-func getenv(key, fallback string) string {
-	if val := os.Getenv(key); val != "" {
-		return val
+func getEnv(key, fallback string) string {
+	if value, ok := os.LookupEnv(key); ok {
+		return value
 	}
 	return fallback
 }

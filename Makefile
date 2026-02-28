@@ -1,121 +1,57 @@
-SHELL := /bin/bash
-.SHELLFLAGS := -lc
+# Secra Makefile
 
-# ----------------------------------------------------------------------------
-# Load environment file if exists
-# ----------------------------------------------------------------------------
-ENV_FILE := .env
-ifneq ("$(wildcard $(ENV_FILE))","")
-	include $(ENV_FILE)
-endif
+APP_NAME := secra
+VERSION := 0.1.0
+BUILD_DATE := $(shell date -u +'%Y-%m-%dT%H:%M:%SZ')
+GIT_COMMIT := $(shell git rev-parse --short HEAD 2>/dev/null || echo "none")
+BUILT_BY := $(shell hostname)
+GO_OS := $(shell go env GOOS)
+GO_ARCH := $(shell go env GOARCH)
 
-# ----------------------------------------------------------------------------
-# Go version enforcement via gvm
-# ----------------------------------------------------------------------------
-GO_REQUIRED := go1.24.5
-GO_CURRENT := $(shell go version | awk '{print $$3}')
-ifneq ($(GO_CURRENT),$(GO_REQUIRED))
-$(warning Current Go version is $(GO_CURRENT). Recommended version is $(GO_REQUIRED).)
-endif
+# Package path for variable injection
+PKG := gitlab.com/jacky850509/secra/internal/config
 
-# ----------------------------------------------------------------------------
-# Build metadata (injected via -ldflags)
-# ----------------------------------------------------------------------------
-VERSION   ?= 0.1.0
-COMMIT    := $(shell git rev-parse --short HEAD)
-BUILD_DATE:= $(shell date -u +%Y-%m-%d)
-LDFLAGS   := -X 'main.Version=$(VERSION)' \
-             -X 'main.Commit=$(COMMIT)' \
-             -X 'main.BuildDate=$(BUILD_DATE)'
+LDFLAGS := -X $(PKG).Version=$(VERSION) \
+           -X $(PKG).BuildDate=$(BUILD_DATE) \
+           -X $(PKG).Commit=$(GIT_COMMIT) \
+           -X $(PKG).BuiltBy=$(BUILT_BY) \
+           -X $(PKG).OS=$(GO_OS) \
+           -X $(PKG).Arch=$(GO_ARCH) \
+           -s -w
 
-# ----------------------------------------------------------------------------
-# Protobuf code generation
-# ----------------------------------------------------------------------------
-BUF_TEMPLATE := api/buf.gen.yaml
-PROTO_DIR    := api/proto/v1
-GEN_OUT      := api/gen/v1
+.PHONY: all build clean test docker-up docker-down migrate-up migrate-status
 
-.PHONY: buf-gen
-buf-gen:
-	cd api && buf generate --template $(notdir $(BUF_TEMPLATE))
+all: build
 
-.PHONY: proto-gen
-proto-gen: buf-gen
-	@echo "Generating Go code with protoc"
-	@mkdir -p $(GEN_OUT)
-	protoc \
-	  -I$(PROTO_DIR) \
-	  -I$(shell go list -m -f '{{ .Dir }}/api/proto/v1' gitlab.com/jacky850509/secra) \
-	  --go_out=$(GEN_OUT) --go_opt=paths=source_relative \
-	  --go-grpc_out=$(GEN_OUT) --go-grpc_opt=paths=source_relative \
-	  $(PROTO_DIR)/*.proto
+build:
+	@echo "Building Secra binaries..."
+	go build -ldflags="$(LDFLAGS)" -o bin/secra-grpc ./cmd/server/grpc.go
+	go build -ldflags="$(LDFLAGS)" -o bin/secra-http ./cmd/server/http.go
+	go build -ldflags="$(LDFLAGS)" -o bin/secra ./cmd/cli/secra.go
 
-# ----------------------------------------------------------------------------
-# Build commands
-# ----------------------------------------------------------------------------
-.PHONY: build-cli build-grpc build-http build
-build-cli:
-	go build -ldflags "$(LDFLAGS)" -o bin/secra-cli ./cmd/cli/secra.go
+clean:
+	rm -rf bin/
 
-build-grpc:
-	go build -ldflags "$(LDFLAGS)" -o bin/secra-grpc ./cmd/server/grpc.go
+test:
+	go test -v ./...
 
-build-http:
-	go build -ldflags "$(LDFLAGS)" -o bin/secra-api ./cmd/server/http.go
+docker-up:
+	docker compose up -d --build
 
-build: build-cli build-grpc build-http
-
-# ----------------------------------------------------------------------------
-# Run commands
-# ----------------------------------------------------------------------------
-.PHONY: run-cli run-grpc run-http
-run-cli:
-	go run ./cmd/cli/secra.go
-
-run-grpc:
-	go run ./cmd/server/grpc.go
-
-run-http:
-	go run ./cmd/server/http_server
-
-# ----------------------------------------------------------------------------
-# Docker utilities
-# ----------------------------------------------------------------------------
-.PHONY: docker-build up down logs dbshell
-docker-build:
-	docker build --build-arg VERSION=$(VERSION) --build-arg COMMIT=$(COMMIT) --build-arg DATE=$(BUILD_DATE) -t secra .
-
-up:
-	docker compose up -d
-
-down:
+docker-down:
 	docker compose down
 
-logs:
-	docker compose logs -f
-
-dbshell:
-	docker exec -it secra-db psql -U postgres -d secra
-
-# ----------------------------------------------------------------------------
-# Development utilities
-# ----------------------------------------------------------------------------
-.PHONY: fmt lint mod-tidy
-fmt:
-	go fmt ./...
-
-lint:
-	golangci-lint run
-
-mod-tidy:
-	GOFLAGS=-mod=mod go mod tidy
-
-# ----------------------------------------------------------------------------
-# Migrations
-# ----------------------------------------------------------------------------
-.PHONY: migrate migrate-status
-migrate:
+migrate-up:
 	go run cmd/cli/secra.go migrate up
 
 migrate-status:
 	go run cmd/cli/secra.go migrate status
+
+# For production Docker build, we pass these as build-args
+docker-build:
+	docker build \
+		--build-arg VERSION=$(VERSION) \
+		--build-arg BUILD_DATE=$(BUILD_DATE) \
+		--build-arg GIT_COMMIT=$(GIT_COMMIT) \
+		--build-arg BUILT_BY=$(BUILT_BY) \
+		-t $(APP_NAME):latest .
