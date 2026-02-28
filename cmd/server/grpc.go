@@ -6,6 +6,8 @@ import (
 	"os"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/health"
+	"google.golang.org/grpc/health/grpc_health_v1"
 
 	"gitlab.com/jacky850509/secra/cmd/server/grpc_server"
 	"gitlab.com/jacky850509/secra/internal/config"
@@ -25,6 +27,12 @@ func main() {
 	}
 
 	grpcServer := grpc.NewServer()
+
+	// Register Health Check Service
+	healthServer := health.NewServer()
+	grpc_health_v1.RegisterHealthServer(grpcServer, healthServer)
+	healthServer.SetServingStatus("", grpc_health_v1.HealthCheckResponse_SERVING)
+
 	grpc_server.RegisterServices(grpcServer, db.DB)
 
 	fmt.Printf("gRPC server listening on %s\n", cfg.GRPCPort)

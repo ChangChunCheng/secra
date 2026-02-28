@@ -1,22 +1,15 @@
 package nvd
 
 import (
-	"context"
-	"database/sql"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"log"
-	"time"
 
-	"github.com/google/uuid"
 	"github.com/spf13/cobra"
-	"github.com/uptrace/bun"
 
 	"gitlab.com/jacky850509/secra/internal/config"
 	"gitlab.com/jacky850509/secra/internal/fetcher"
 	"gitlab.com/jacky850509/secra/internal/importer"
-	"gitlab.com/jacky850509/secra/internal/model"
 	nvd_v1_parser "gitlab.com/jacky850509/secra/internal/parser/nvd/v1"
 	"gitlab.com/jacky850509/secra/internal/storage"
 )
@@ -88,7 +81,6 @@ func ImportNvdv1(recent, modified bool, year uint16) {
 	log.Printf("📥 Downloaded %d feeds.", len(processData))
 
 	log.Printf("📦 Processing %d feeds...", len(processData))
-	// Step 1: 轉換 CVEs
 	for feedName, data := range processData {
 		log.Printf("📦 Processing %s feed...", feedName)
 		if err = ProcessImportNvdv1(db, data, feedName); err != nil {
@@ -100,7 +92,6 @@ func ImportNvdv1(recent, modified bool, year uint16) {
 }
 
 func ProcessImportNvdv1(db *storage.DBWrapper, data []byte, sourceName string) error {
-
 	var feed nvd_v1_parser.Nvdv1CveFeed
 	if err := json.Unmarshal(data, &feed); err != nil {
 		log.Fatalf("❌ Failed to parse feed JSON: %v", err)
@@ -108,39 +99,33 @@ func ProcessImportNvdv1(db *storage.DBWrapper, data []byte, sourceName string) e
 	}
 	log.Printf("✅ Feed parsed with %d items.", len(feed.Items))
 
-	// Step 1: 轉換 CVEs
 	cves, err := nvd_v1_parser.ConvertToCVEs(&feed)
 	if err != nil {
 		log.Fatalf("❌ Failed to convert CVEs: %v", err)
 		return err
 	}
 
-	// Step 2: 確保來源
-	source, err := ensureCveSource(db.DB, sourceName, cfg.NvdURLv1, "")
+	source, err := ensureCveSource(db.DB, sourceName, "NVD v1 data feed", cfg.NvdURLv1)
 	if err != nil {
 		log.Fatalf("❌ Failed to ensure source: %v", err)
 		return err
 	}
 
-	// Step 3: 匯入 CVEs
 	log.Printf("📦 Importing %d CVEs...", len(cves))
 	if err := importer.ImportCVEs(db.DB, source.ID, cves); err != nil {
 		log.Fatalf("❌ CVE import failed: %v", err)
 		return err
 	}
 
-	// Step 4: 萃取 vendor/product 關聯
 	log.Println("🔍 Extracting vendors/products from configurations...")
 	vendors, products, relations := nvd_v1_parser.ExtractVendorsAndProductsFromv1(&feed)
 
-	// Step 5: 寫入 vendors
 	log.Printf("📦 Inserting %d vendors...", len(vendors))
 	if err := importer.ImportVendorsAndProductsFromv1(db.DB, vendors, nil, nil, nil, nil); err != nil {
 		log.Fatalf("❌ Vendor insert failed: %v", err)
 		return err
 	}
 
-	// Step 6: 查出 vendorMap 以補 products 的 VendorID
 	vendorMap, err := importer.BuildVendorMap(db.DB)
 	if err != nil {
 		log.Fatalf("❌ Failed to build vendor map: %v", err)
@@ -148,29 +133,25 @@ func ProcessImportNvdv1(db *storage.DBWrapper, data []byte, sourceName string) e
 	}
 
 	for i := range products {
-		name := products[i].VendorID // 此時仍為 vendor name
+		name := products[i].VendorID
 		if realID, ok := vendorMap[name]; ok {
 			products[i].VendorID = realID
 		} else {
 			log.Printf("❌ Vendor not found before inserting product: %s", name)
-			return err
+			return fmt.Errorf("vendor not found: %s", name)
 		}
 	}
 
-	// Step 7: 寫入 products
 	log.Printf("📦 Inserting %d products...", len(products))
 	if err := importer.ImportVendorsAndProductsFromv1(db.DB, nil, products, nil, nil, nil); err != nil {
 		log.Fatalf("❌ Product insert failed: %v", err)
 		return err
 	}
 
-	// Step 8: 準備對照表並關聯 CVE ↔ Product
-	// 建立所有 source_uid 清單
 	uids := make([]string, 0, len(cves))
 	for _, cve := range cves {
 		uids = append(uids, cve.SourceUID)
 	}
-	// 無論是新寫入或已有的，統一查詢 UUID
 	cveMap, err := importer.BuildCveMap(db.DB, uids)
 	if err != nil {
 		log.Fatalf("❌ Failed to build CVE map: %v", err)
@@ -190,44 +171,5 @@ func ProcessImportNvdv1(db *storage.DBWrapper, data []byte, sourceName string) e
 	}
 
 	log.Println("✅ Import complete.")
-
 	return nil
-}
-
-func ensureCveSource(db *bun.DB, name, description, urlStr string) (*model.CVESource, error) {
-	ctx := context.Background()
-
-	var src model.CVESource
-	err := db.NewSelect().Model(&src).Where("name = ?", name).Scan(ctx)
-	if err == nil {
-		return &src, nil // 已存在，直接回傳
-	}
-
-	if err != nil && !errors.Is(err, sql.ErrNoRows) {
-		// 只有在確定資料不存在時才繼續建立，其他錯誤直接回傳
-		return nil, err
-	}
-
-	// 只在來源尚未存在時，才使用提供的 description 和 url
-	var urlPtr string
-	if urlStr != "" {
-		urlPtr = urlStr
-	}
-
-	src = model.CVESource{
-		ID:          uuid.NewString(),
-		Name:        name,
-		Type:        "nvd",
-		URL:         urlPtr,
-		Description: description,
-		Enabled:     true,
-		CreatedAt:   time.Now(),
-	}
-
-	_, err = db.NewInsert().Model(&src).Exec(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	return &src, nil
 }

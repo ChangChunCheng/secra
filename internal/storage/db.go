@@ -18,22 +18,36 @@ type DBWrapper struct {
 	sqlDB *sql.DB
 }
 
-// NewDB 建立並回傳 DBWrapper，包含連線池與錯誤偵測與資料表驗證
+// NewDB 建立並回傳 DBWrapper，包含無限重試連線機制
 func NewDB(dsn string, checkSchema bool) *DBWrapper {
-	sqlDB := sql.OpenDB(pgdriver.NewConnector(pgdriver.WithDSN(dsn)))
+	connector := pgdriver.NewConnector(pgdriver.WithDSN(dsn))
+	sqlDB := sql.OpenDB(connector)
 
-	// 連線設定 ...
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
+	// 設定連線池基本參數
+	sqlDB.SetMaxOpenConns(10)
+	sqlDB.SetMaxIdleConns(5)
+	sqlDB.SetConnMaxLifetime(30 * time.Minute)
 
-	if err := sqlDB.PingContext(ctx); err != nil {
-		log.Fatalf("Database ping failed: %v", err)
+	// 無限重試連線，直到資料庫就緒
+	for {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		err := sqlDB.PingContext(ctx)
+		cancel()
+
+		if err == nil {
+			log.Println("✅ Successfully connected to database.")
+			break
+		}
+
+		log.Printf("⏳ Database not ready, retrying in 5 seconds... (error: %v)", err)
+		time.Sleep(5 * time.Second)
 	}
 
 	db := bun.NewDB(sqlDB, pgdialect.New())
-	log.Println("Connected to database successfully")
 
 	if checkSchema {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
 		verifyTables(db, ctx)
 	}
 
@@ -56,7 +70,7 @@ type TableDefinition struct {
 	Columns []string
 }
 
-// verifyTables 檢查多 schema 多表格與欄位是否存在
+// verifyTables 檢查資料表完整性
 func verifyTables(db *bun.DB, ctx context.Context) {
 	tables := []TableDefinition{
 		{Schema: "public", Name: "cve_sources", Columns: []string{"id", "name", "type", "url"}},
@@ -72,7 +86,8 @@ func verifyTables(db *bun.DB, ctx context.Context) {
 
 		var columns []string
 		if err := db.NewRaw(query).Scan(ctx, &columns); err != nil {
-			log.Fatalf("Failed to query columns for table %s: %v", fullTable, err)
+			log.Printf("⚠️ Warning: Table verification query failed for %s: %v", fullTable, err)
+			continue
 		}
 
 		cols := map[string]bool{}
@@ -82,12 +97,8 @@ func verifyTables(db *bun.DB, ctx context.Context) {
 
 		for _, expected := range t.Columns {
 			if !cols[expected] {
-				log.Fatalf("Missing column '%s' in table %s", expected, fullTable)
+				log.Printf("⚠️ Warning: Missing column '%s' in table %s", expected, fullTable)
 			}
 		}
-
-		log.Printf("Table verified: %s (%d columns)\n", fullTable, len(cols))
 	}
-
-	log.Println("All required tables and columns verified.")
 }

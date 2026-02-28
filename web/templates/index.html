@@ -1,7 +1,28 @@
 {{ define "content" }}
 <div class="card">
-    <h2>System Overview</h2>
-    <p>Global vulnerability intelligence monitoring.</p>
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+        <h2>Vulnerability Intelligence Dashboard</h2>
+        <div style="display: flex; gap: 5px;">
+            <a href="/?range=5y" class="btn {{ if eq .ActiveRange "5y" }}active{{ end }}" style="font-size: 0.7rem;">5Y</a>
+            <a href="/?range=1y" class="btn {{ if eq .ActiveRange "1y" }}active{{ end }}" style="font-size: 0.7rem;">1Y</a>
+            <a href="/?range=1m" class="btn {{ if eq .ActiveRange "1m" }}active{{ end }}" style="font-size: 0.7rem;">1M</a>
+            <a href="/?range=1w" class="btn {{ if eq .ActiveRange "1w" }}active{{ end }}" style="font-size: 0.7rem;">1W</a>
+            <button onclick="toggleCustomRange()" class="btn {{ if eq .ActiveRange "custom" }}active{{ end }}" style="font-size: 0.7rem;">Custom</button>
+        </div>
+    </div>
+    
+    <form id="customRangeForm" action="/" method="GET" style="display: {{ if eq .ActiveRange "custom" }}flex{{ else }}none{{ end }}; margin-top: 15px; gap: 10px; align-items: flex-end; justify-content: flex-end; border-top: 1px solid var(--border-color); padding-top: 15px;">
+        <input type="hidden" name="range" value="custom">
+        <div style="width: 150px;">
+            <label style="font-size: 0.7rem; color: var(--text-secondary);">From</label>
+            <input type="date" name="start" value="{{ .StartStr }}" style="margin-bottom: 0; padding: 5px;">
+        </div>
+        <div style="width: 150px;">
+            <label style="font-size: 0.7rem; color: var(--text-secondary);">To</label>
+            <input type="date" name="end" value="{{ .EndStr }}" style="margin-bottom: 0; padding: 5px;">
+        </div>
+        <button type="submit" class="btn" style="padding: 5px 15px;">Apply</button>
+    </form>
 </div>
 
 <div class="grid">
@@ -20,32 +41,43 @@
 </div>
 
 <div class="card" style="margin-top: 20px;">
-    <h2>Recent CVE Trend (Last 7 Days)</h2>
-    <canvas id="cveChart" height="100"></canvas>
+    <h2>CVE Publication Trend ({{ .ActiveRange }})</h2>
+    <div style="height: 350px; min-height: 350px; width: 100%; position: relative;">
+        <canvas id="cveChart"></canvas>
+    </div>
 </div>
 
 <div class="card" style="margin-top: 20px;">
-    <h2>Latest Vulnerabilities</h2>
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+        <h2>Latest Vulnerabilities</h2>
+        <a href="/cves" style="font-size: 0.8rem; color: var(--accent-color);">View All CVEs →</a>
+    </div>
     <table>
         <thead>
             <tr>
+                <th>Source</th>
                 <th>CVE ID</th>
-                <th>Title</th>
+                <th>Affected Assets (Vendor:Product)</th>
                 <th>Severity</th>
-                <th>Published</th>
+                <th>Published (UTC)</th>
             </tr>
         </thead>
         <tbody>
             {{ range .RecentCVEs }}
             <tr>
-                <td><a href="/cves/{{ .ID }}">{{ .SourceUID }}</a></td>
-                <td>{{ .Title }}</td>
+                <td><span class="badge low">{{ .SourceName }}</span></td>
+                <td><a href="/cves/{{ .ID }}"><strong>{{ .SourceUID }}</strong></a></td>
+                <td style="max-width: 300px;">
+                    <div style="font-size: 0.8rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="{{ .Assets }}">
+                        {{ if .Assets }}{{ .Assets }}{{ else }}<span style="color: var(--text-secondary); font-style: italic;">No assets linked</span>{{ end }}
+                    </div>
+                </td>
                 <td>
                     <span class="badge {{ if eq (derefString .Severity) "HIGH" }}high{{ else if eq (derefString .Severity) "MEDIUM" }}medium{{ else }}low{{ end }}">
                         {{ derefString .Severity }}
                     </span>
                 </td>
-                <td>{{ .PublishedAt.Format "2006-01-02" }}</td>
+                <td><code style="font-size: 0.8rem;">{{ formatDate .PublishedAt }}</code></td>
             </tr>
             {{ end }}
         </tbody>
@@ -53,29 +85,60 @@
 </div>
 
 <script>
+    function toggleCustomRange() {
+        const form = document.getElementById('customRangeForm');
+        form.style.display = form.style.display === 'none' ? 'flex' : 'none';
+    }
+
+    const chartLabels = [{{ range .ChartLabels }}'{{ . }}',{{ end }}];
+    const chartData = [{{ range .ChartData }}{{ . }},{{ end }}];
+    
+    console.log("Chart Debug:", { labelsCount: chartLabels.length, dataCount: chartData.length });
+
     const ctx = document.getElementById('cveChart').getContext('2d');
     new Chart(ctx, {
         type: 'line',
         data: {
-            labels: [{{ range .ChartLabels }}'{{ . }}',{{ end }}],
+            labels: chartLabels,
             datasets: [{
-                label: 'New CVEs',
-                data: [{{ range .ChartData }}{{ . }},{{ end }}],
+                label: 'CVEs Published',
+                data: chartData,
                 borderColor: '#00ff41',
-                backgroundColor: 'rgba(0, 255, 65, 0.1)',
+                backgroundColor: 'rgba(0, 255, 65, 0.05)',
                 borderWidth: 2,
+                pointRadius: {{ if eq .ActiveRange "5y" }}0{{ else }}2{{ end }},
                 fill: true,
                 tension: 0.3
             }]
         },
         options: {
+            maintainAspectRatio: false,
             responsive: true,
             scales: {
-                y: { beginAtZero: true, grid: { color: '#30363d' }, ticks: { color: '#8b949e' } },
-                x: { grid: { color: '#30363d' }, ticks: { color: '#8b949e' } }
+                y: { 
+                    beginAtZero: true, 
+                    grid: { color: 'rgba(255, 255, 255, 0.05)' }, 
+                    ticks: { color: '#8b949e' } 
+                },
+                x: { 
+                    grid: { display: false }, 
+                    ticks: { 
+                        color: '#8b949e',
+                        autoSkip: true,
+                        maxTicksLimit: 15
+                    } 
+                }
             },
-            plugins: { legend: { labels: { color: '#c9d1d9' } } }
+            plugins: { legend: { display: false } }
         }
     });
 </script>
+
+<style>
+    .btn.active {
+        background-color: var(--accent-color);
+        color: var(--bg-color);
+        box-shadow: 0 0 10px rgba(0, 255, 65, 0.4);
+    }
+</style>
 {{ end }}

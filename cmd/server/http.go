@@ -4,6 +4,7 @@ import (
 	"context"
 	"log"
 	"net/http"
+	"os"
 	"strings"
 
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
@@ -32,6 +33,10 @@ func main() {
 	opts := []grpc.DialOption{grpc.WithTransportCredentials(insecure.NewCredentials())}
 	
 	grpcAddr := "localhost" + cfg.GRPCPort
+	if os.Getenv("GRPC_HOST") != "" {
+		grpcAddr = os.Getenv("GRPC_HOST") + cfg.GRPCPort
+	}
+
 	// Register all services to the gateway
 	err := secra_v1.RegisterCVEServiceHandlerFromEndpoint(ctx, mux, grpcAddr, opts)
 	if err != nil {
@@ -61,9 +66,10 @@ func main() {
 		port = ":8081"
 	}
 
-	addr := "127.0.0.1" + port
-	log.Printf("🚀 Combined HTTP Server (API + Web UI) starting on %s...", addr)
-	if err := http.ListenAndServe(addr, mainHandler); err != nil {
+	// Listen on 0.0.0.0 to be accessible outside Docker containers
+	bindAddr := "0.0.0.0" + port
+	log.Printf("🚀 Combined HTTP Server (API + Web UI) starting on %s...", bindAddr)
+	if err := http.ListenAndServe(bindAddr, mainHandler); err != nil {
 		log.Fatalf("❌ Failed to start HTTP server: %v", err)
 	}
 }

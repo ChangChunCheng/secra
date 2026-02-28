@@ -2,6 +2,8 @@ package root
 
 import (
 	"github.com/spf13/cobra"
+	"gitlab.com/jacky850509/secra/cmd/cli/backup"
+	"gitlab.com/jacky850509/secra/cmd/cli/health"
 	importcmd "gitlab.com/jacky850509/secra/cmd/cli/import"
 	"gitlab.com/jacky850509/secra/cmd/cli/migrate"
 	"gitlab.com/jacky850509/secra/cmd/cli/resource"
@@ -26,4 +28,6 @@ func init() {
 	rootCmd.AddCommand(resource.Cmd)
 	rootCmd.AddCommand(migrate.Cmd)
 	rootCmd.AddCommand(importcmd.Cmd)
+	rootCmd.AddCommand(backup.BackupCmd)
+	rootCmd.AddCommand(health.Cmd)
 }

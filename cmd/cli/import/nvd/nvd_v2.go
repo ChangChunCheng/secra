@@ -6,14 +6,12 @@ import (
 	"log"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/spf13/cobra"
 	"github.com/uptrace/bun"
 
 	"gitlab.com/jacky850509/secra/internal/config"
 	"gitlab.com/jacky850509/secra/internal/fetcher"
 	"gitlab.com/jacky850509/secra/internal/importer"
-	"gitlab.com/jacky850509/secra/internal/model"
 	nvd_v2_parser "gitlab.com/jacky850509/secra/internal/parser/nvd/v2"
 	"gitlab.com/jacky850509/secra/internal/storage"
 )
@@ -23,6 +21,7 @@ var (
 	endDate   string
 	apiKey    string
 	force     bool
+	lastReqAt time.Time
 )
 
 func init() {
@@ -33,167 +32,166 @@ func init() {
 	v2Nvd.MarkFlagRequired("start")
 }
 
+type interval struct {
+	start time.Time
+	end   time.Time
+}
+
 var v2Nvd = &cobra.Command{
 	Use:   "v2",
-	Short: "Import CVEs from NVD API v2 with resume capability",
+	Short: "Import CVEs from NVD API v2 with smart interval merging",
 	Run: func(cmd *cobra.Command, args []string) {
-		start, err := time.Parse(time.DateOnly, startDate)
-		if err != nil {
-			log.Fatalf("❌ Invalid --start date format (expected YYYY-MM-DD): %v", err)
-		}
+		start, _ := time.Parse(time.DateOnly, startDate)
 		end := time.Now().UTC()
 		if endDate != "" {
-			end, err = time.Parse(time.DateOnly, endDate)
-			if err != nil {
-				log.Fatalf("❌ Invalid --end date format (expected YYYY-MM-DD): %v", err)
-			}
-		}
-		if end.Before(start) {
-			log.Fatalf("❌ --end must be after --start")
+			end, _ = time.Parse(time.DateOnly, endDate)
 		}
 
-		cfg := config.Load()
-		db := storage.NewDB(cfg.PostgresDSN, false)
+		cfg = config.Load()
+		db = storage.NewDB(cfg.PostgresDSN, false)
 		defer db.Close()
 
-		// Process day by day to support granular resume
-		for current := start; !current.After(end); current = current.AddDate(0, 0, 1) {
-			dayStr := current.Format(time.DateOnly)
+		var gaps []interval
+		if force {
+			gaps = []interval{{start: start, end: end}}
+		} else {
+			log.Printf("🔍 Scanning database for missing intervals between %s and %s...", start.Format(time.DateOnly), end.Format(time.DateOnly))
+			gaps = findMissingIntervals(cmd.Context(), db.DB, start, end)
+		}
+
+		if len(gaps) == 0 {
+			log.Println("✅ No missing intervals found. Data is up to date.")
+			return
+		}
+
+		for _, gap := range gaps {
+			log.Printf("📅 Processing optimized gap: %s to %s", gap.start.Format(time.DateOnly), gap.end.Format(time.DateOnly))
 			
-			if !force {
-				// Check if we already have data for this specific day
-				count, _ := db.DB.NewSelect().Model((*model.CVE)(nil)).
-					Where("published_at::date = ?", dayStr).
-					Count(cmd.Context())
-				
-				if count > 0 {
-					log.Printf("⏩ Skipping %s (already has %d CVEs). Use -f to force re-import.", dayStr, count)
-					continue
+			chunkSize := 30 * 24 * time.Hour
+			for currentStart := gap.start; currentStart.Before(gap.end); {
+				currentEnd := currentStart.Add(chunkSize)
+				if currentEnd.After(gap.end) {
+					currentEnd = gap.end
 				}
-			}
 
-			dayEnd := current.AddDate(0, 0, 1) // Next day 00:00:00
-			log.Printf("📅 Processing: %s", dayStr)
-			
-			ImportNvdv2Daily(cmd.Context(), db.DB, cfg, current, dayEnd)
-
-			// Delay to respect Rate Limit
-			delay := 6 * time.Second
-			if apiKey != "" {
-				delay = 1 * time.Second
-			}
-			if !current.Equal(end) {
-				time.Sleep(delay)
+				ImportNvdv2Chunk(cmd.Context(), db.DB, cfg, currentStart, currentEnd)
+				currentStart = currentEnd
 			}
 		}
+		log.Println("✅ All requested intervals processed.")
 	},
 }
 
-func ImportNvdv2Daily(ctx context.Context, db *bun.DB, cfg *config.AppConfig, start, end time.Time) {
+func waitThrottle(cfg *config.AppConfig) {
+	delay := 6 * time.Second
+	if apiKey != "" || cfg.NvdAPIKey != "" {
+		delay = 1 * time.Second
+	}
+	
+	elapsed := time.Since(lastReqAt)
+	if elapsed < delay {
+		wait := delay - elapsed
+		log.Printf("⏱️ Throttling: waiting %v...", wait)
+		time.Sleep(wait)
+	}
+	lastReqAt = time.Now()
+}
+
+func findMissingIntervals(ctx context.Context, db *bun.DB, start, end time.Time) []interval {
+	type DateRow struct { Day time.Time `bun:"day"` }
+	var existingDates []DateRow
+	db.NewSelect().Table("cves").ColumnExpr("published_at::date as day").
+		Where("published_at >= ? AND published_at <= ?", start, end).
+		Group("day").Order("day ASC").Scan(ctx, &existingDates)
+
+	dateMap := make(map[string]bool)
+	for _, d := range existingDates { dateMap[d.Day.Format(time.DateOnly)] = true }
+
+	var gaps []interval
+	var currentGap *interval
+
+	for current := start; !current.After(end); current = current.AddDate(0, 0, 1) {
+		dayStr := current.Format(time.DateOnly)
+		if !dateMap[dayStr] {
+			if currentGap == nil { currentGap = &interval{start: current} }
+			currentGap.end = current.AddDate(0, 0, 1)
+		} else {
+			// GREEDY MERGE: Only close the gap if we have more than 7 days of existing data
+			// This reduces the number of small API requests.
+			if currentGap != nil {
+				// Check if there's another missing day within next 7 days
+				hasHoleSoon := false
+				for lookAhead := 1; lookAhead <= 7; lookAhead++ {
+					checkDay := current.AddDate(0, 0, lookAhead)
+					if checkDay.After(end) { break }
+					if !dateMap[checkDay.Format(time.DateOnly)] {
+						hasHoleSoon = true
+						break
+					}
+				}
+				
+				if !hasHoleSoon {
+					gaps = append(gaps, *currentGap)
+					currentGap = nil
+				}
+			}
+		}
+	}
+	if currentGap != nil { gaps = append(gaps, *currentGap) }
+	return gaps
+}
+
+func ImportNvdv2Chunk(ctx context.Context, db *bun.DB, cfg *config.AppConfig, start, end time.Time) {
 	pageSize := 2000
 	startIndex := 0
 
-	source, err := ensureCveSource(db, "nvd-v2", "", cfg.NvdURLv2)
-	if err != nil {
-		log.Fatalf("❌ Failed to ensure source: %v", err)
-	}
-
-	var (
-		allCVEs       []model.CVE
-		allVendors    []model.Vendor
-		allProducts   []model.Product
-		allRelations  []nvd_v2_parser.CVEProductRelation
-		allReferences []model.CVEReference
-		allWeaknesses []model.CVEWeakness
-		allSourceUIDs = make(map[string]struct{})
-	)
+	source, _ := ensureCveSource(db, "nvd-v2", "NVD v2 API", cfg.NvdURLv2)
 
 	for {
+		waitThrottle(cfg) // Ensure every fetch call is throttled
+
 		data, err := fetcher.FetchNvdv2Feed(cfg.NvdURLv2, fetcher.NvdV2QueryParams{
 			PubStartDate:   start,
 			PubEndDate:     end,
 			StartIndex:     startIndex,
 			ResultsPerPage: pageSize,
 			ApiKey:         apiKey,
+			MaxRetries:     cfg.NvdMaxRetries,
+			RetryDelay:     cfg.NvdRetryDelay,
 		})
+		
 		if err != nil {
-			log.Fatalf("❌ Failed to fetch NVD v2 feed: %v", err)
+			log.Printf("❌ Skipping chunk %s-%s due to error: %v", start.Format(time.DateOnly), end.Format(time.DateOnly), err)
+			return
 		}
 
 		var feed nvd_v2_parser.Nvdv2CveFeed
-		if err := json.Unmarshal(data, &feed); err != nil {
-			log.Fatalf("❌ Failed to parse NVD v2 feed JSON: %v", err)
-		}
+		json.Unmarshal(data, &feed)
 
-		if len(feed.Vulnerabilities) == 0 {
-			break
-		}
+		if len(feed.Vulnerabilities) == 0 { break }
 
 		cves, _ := nvd_v2_parser.ConvertToCVEsFromV2(&feed)
-		allCVEs = append(allCVEs, cves...)
+		importer.ImportCVEs(db, source.ID, cves)
 
-		vendors, products, relations, references, weaknesses := nvd_v2_parser.ExtractAllFromV2(&feed)
-		allVendors = append(allVendors, vendors...)
-		allProducts = append(allProducts, products...)
-		allRelations = append(allRelations, relations...)
-		allReferences = append(allReferences, references...)
-		allWeaknesses = append(allWeaknesses, weaknesses...)
+		v, p, rel, ref, w := nvd_v2_parser.ExtractAllFromV2(&feed)
+		importer.ImportVendorsAndProductsFromv2(db, v, nil, nil, nil, nil)
+		
+		vendorMap, _ := importer.BuildVendorMap(db)
+		for i := range p {
+			if realID, ok := vendorMap[p[i].VendorID]; ok { p[i].VendorID = realID }
+		}
+		importer.ImportVendorsAndProductsFromv2(db, nil, p, nil, nil, nil)
 
-		for _, cve := range cves { allSourceUIDs[cve.SourceUID] = struct{}{} }
+		productMap, _ := importer.BuildProductMap(db)
+		uids := make([]string, 0, len(cves))
+		for _, c := range cves { uids = append(uids, c.SourceUID) }
+		cveMap, _ := importer.BuildCveMap(db, uids)
+
+		importer.ImportVendorsAndProductsFromv2(db, nil, nil, rel, cveMap, productMap)
+		importer.ImportReferences(db, ref, cveMap)
+		importer.ImportWeaknesses(db, w, cveMap)
 
 		startIndex += len(feed.Vulnerabilities)
-		if startIndex >= feed.TotalResults {
-			break
-		}
-		time.Sleep(1 * time.Second)
+		if startIndex >= feed.TotalResults { break }
 	}
-
-	if len(allCVEs) == 0 {
-		log.Printf("ℹ️ No data found for this date.")
-		return
-	}
-
-	// Import Logic (using existing importer logic)
-	importer.ImportCVEs(db, source.ID, allCVEs)
-	importer.ImportVendorsAndProductsFromv2(db, allVendors, nil, nil, nil, nil)
-	
-	vendorMap, _ := importer.BuildVendorMap(db)
-	for i := range allProducts {
-		if realID, ok := vendorMap[allProducts[i].VendorID]; ok {
-			allProducts[i].VendorID = realID
-		}
-	}
-	importer.ImportVendorsAndProductsFromv2(db, nil, allProducts, nil, nil, nil)
-
-	productMap, _ := importer.BuildProductMap(db)
-	cveUIDList := make([]string, 0, len(allSourceUIDs))
-	for uid := range allSourceUIDs { cveUIDList = append(cveUIDList, uid) }
-	cveMap, _ := importer.BuildCveMap(db, cveUIDList)
-
-	importer.ImportVendorsAndProductsFromv2(db, nil, nil, allRelations, cveMap, productMap)
-	importer.ImportReferences(db, allReferences, cveMap)
-	importer.ImportWeaknesses(db, allWeaknesses, cveMap)
-
-	log.Printf("✅ Daily import complete: %d CVEs processed.", len(allCVEs))
-}
-
-func ensureCveSource(db *bun.DB, name, description, url string) (*model.CVESource, error) {
-	ctx := context.Background()
-	source := new(model.CVESource)
-	err := db.NewSelect().Model(source).Where("name = ?", name).Scan(ctx)
-	if err == nil {
-		return source, nil
-	}
-
-	source = &model.CVESource{
-		ID:          uuid.New().String(),
-		Name:        name,
-		Type:        "nvd",
-		URL:         url,
-		Description: description,
-		Enabled:     true,
-	}
-
-	_, err = db.NewInsert().Model(source).Exec(ctx)
-	return source, err
 }

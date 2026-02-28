@@ -1,35 +1,47 @@
-# Stage 1: Build binary
-FROM golang:1.24.5 as builder
+# Stage 0: Generate code from Protobuf
+FROM bufbuild/buf:latest AS generate
+
+WORKDIR /app
+COPY api ./api
+RUN cd api && buf generate --template buf.gen.yaml
+
+# Stage 1: Build binaries
+FROM golang:1.25-alpine AS builder
 
 WORKDIR /app
 
-COPY . .
-
-ARG VERSION
-ARG COMMIT
-ARG DATE
-
+# Install dependencies (golang:alpine has CA certs needed for this)
+COPY go.mod go.sum ./
 RUN go mod download
 
-# Build CLI
-RUN go build -ldflags="-X 'main.Version=${VERSION}' -X 'main.Commit=${COMMIT}' -X 'main.BuildDate=${DATE}'" \
-    -o bin/secra-cli ./cmd/cli
+# Copy source code
+COPY . .
 
-# Build gRPC server
-RUN go build -ldflags="-X 'main.Version=${VERSION}' -X 'main.Commit=${COMMIT}' -X 'main.BuildDate=${DATE}'" \
-    -o bin/secra-grpc ./cmd/server/grpc_server
+# Copy generated code from Stage 0
+COPY --from=generate /app/api/gen ./api/gen
 
-# Build HTTP server
-RUN go build -ldflags="-X 'main.Version=${VERSION}' -X 'main.Commit=${COMMIT}' -X 'main.BuildDate=${DATE}'" \
-    -o bin/secra-api ./cmd/server/http_server
+# Build static binaries
+# -s -w removes symbol table and debug information to reduce size
+RUN CGO_ENABLED=0 go build -ldflags="-s -w" -o secra-grpc ./cmd/server/grpc.go && \
+    CGO_ENABLED=0 go build -ldflags="-s -w" -o secra-http ./cmd/server/http.go && \
+    CGO_ENABLED=0 go build -ldflags="-s -w" -o secra ./cmd/cli/secra.go
 
-# Stage 2: Runtime
-FROM debian:bookworm-slim
+# Stage 2: Final Runtime Image (The Professional Choice)
+# gcr.io/distroless/static contains CA certificates, /etc/passwd, and tzdata
+# but NO shell, NO package manager - ideal for static Go binaries.
+FROM gcr.io/distroless/static-debian12
 
 WORKDIR /app
 
-COPY --from=builder /app/bin/secra-cli ./secra-cli
-COPY --from=builder /app/bin/secra-grpc ./secra-grpc
-COPY --from=builder /app/bin/secra-api ./secra-api
+# Copy binaries and assets
+COPY --from=builder /app/secra-grpc .
+COPY --from=builder /app/secra-http .
+COPY --from=builder /app/secra /usr/local/bin/secra
+COPY --from=builder /app/web ./web
+COPY --from=builder /app/migrations ./migrations
 
-CMD ["./secra-cli"]
+# Expose ports
+EXPOSE 50051 8081
+
+# Default command
+CMD ["./secra-http"]

@@ -1,10 +1,9 @@
-version: "3.9"
+version: '3.8'
 
 services:
-  postgres:
+  db:
     image: postgres:15
     container_name: secra-db
-    restart: unless-stopped
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
@@ -12,7 +11,55 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      - secra_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d secra"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  grpc:
+    build: .
+    container_name: secra-grpc
+    command: ./secra-grpc
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "50051:50051"
+    env_file:
+      - .env
+    environment:
+      - POSTGRES_DSN=postgres://postgres:postgres@db:5432/secra?sslmode=disable
+      - GRPC_PORT=:50051
+    healthcheck:
+      test: ["CMD", "secra", "health", "check", "--type=db"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  web:
+    build: .
+    container_name: secra-web
+    command: ./secra-http
+    depends_on:
+      - grpc
+    ports:
+      - "8081:8081"
+    env_file:
+      - .env
+    environment:
+      - POSTGRES_DSN=postgres://postgres:postgres@db:5432/secra?sslmode=disable
+      - GRPC_PORT=:50051
+      - HTTP_PORT=:8081
+      - GRPC_HOST=grpc
+    healthcheck:
+      test: ["CMD", "secra", "health", "check", "--type=db"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
 
 volumes:
-  pgdata:
+  secra_pgdata:

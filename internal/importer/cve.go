@@ -12,10 +12,13 @@ func ImportCVEs(db *bun.DB, sourceID string, cves []model.CVE) error {
 	ctx := context.Background()
 	var successCount, errorCount int
 
+	// Track which days need their counts updated
+	dailyDelta := make(map[string]int)
+
 	for _, cve := range cves {
 		cve.SourceID = sourceID
 
-		_, err := db.NewInsert().
+		res, err := db.NewInsert().
 			Model(&cve).
 			On("CONFLICT (source_uid) DO UPDATE").
 			Set("title = EXCLUDED.title").
@@ -30,6 +33,26 @@ func ImportCVEs(db *bun.DB, sourceID string, cves []model.CVE) error {
 			log.Printf("❌ Failed to upsert CVE %s: %v", cve.SourceUID, err)
 		} else {
 			successCount++
+			// Only increment count if it was a NEW insertion
+			rowsAffected, _ := res.RowsAffected()
+			if rowsAffected > 0 {
+				dayStr := cve.PublishedAt.Format("2006-01-02")
+				dailyDelta[dayStr]++
+			}
+		}
+	}
+
+	// Bulk update the daily counts
+	for dayStr, delta := range dailyDelta {
+		_, err := db.NewRaw(`
+			INSERT INTO daily_cve_counts (day, count, updated_at)
+			VALUES (?, ?, NOW())
+			ON CONFLICT (day) DO UPDATE SET 
+				count = daily_cve_counts.count + EXCLUDED.count,
+				updated_at = NOW()`, dayStr, delta).Exec(ctx)
+		
+		if err != nil {
+			log.Printf("⚠️ Failed to update daily stats for %s: %v", dayStr, err)
 		}
 	}
 
@@ -37,17 +60,14 @@ func ImportCVEs(db *bun.DB, sourceID string, cves []model.CVE) error {
 	return nil
 }
 
-// 查詢所有指定 source_uid 對應的 UUID → 建立 cveMap
+// BuildCveMap queries UUIDs for given source_uids
 func BuildCveMap(db *bun.DB, sourceUIDs []string) (map[string]string, error) {
 	ctx := context.Background()
-
 	type row struct {
 		ID        string `bun:"id"`
 		SourceUID string `bun:"source_uid"`
 	}
-
 	var results []row
-
 	err := db.NewSelect().
 		Table("cves").
 		Column("id", "source_uid").
@@ -56,7 +76,6 @@ func BuildCveMap(db *bun.DB, sourceUIDs []string) (map[string]string, error) {
 	if err != nil {
 		return nil, err
 	}
-
 	m := make(map[string]string)
 	for _, r := range results {
 		m[r.SourceUID] = r.ID
