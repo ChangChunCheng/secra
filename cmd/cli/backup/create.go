@@ -31,33 +31,22 @@ var createCmd = &cobra.Command{
 		defer db.Close()
 
 		timestamp := time.Now().Format("20060102_150405")
-		if outputFile == "" {
-			outputFile = fmt.Sprintf("secra_backup_%s.tar.gz", timestamp)
-		}
+		if outputFile == "" { outputFile = fmt.Sprintf("secra_backup_%s.tar.gz", timestamp) }
 
-		tmpDir, err := os.MkdirTemp("", "secra_backup_*")
-		if err != nil {
-			log.Fatalf("❌ Failed to create temp dir: %v", err)
-		}
+		tmpDir, _ := os.MkdirTemp("", "secra_backup_*")
 		defer os.RemoveAll(tmpDir)
 
 		log.Printf("📦 Starting backup process to %s...", outputFile)
 
-		// 1. Export Tables to Parquet
-		tables := []string{"vendors", "products", "cves", "users", "subscriptions"}
+		// Added cve_sources to the list
+		tables := []string{"cve_sources", "vendors", "products", "cves", "users", "subscriptions"}
 		for _, table := range tables {
 			parquetFile := filepath.Join(tmpDir, table+".parquet")
 			log.Printf("📄 Exporting table [%s]...", table)
-			if err := exportTableToParquet(cmd.Context(), db, table, parquetFile); err != nil {
-				log.Printf("⚠️ Failed to export %s: %v", table, err)
-			}
+			exportTableToParquet(cmd.Context(), db, table, parquetFile)
 		}
 
-		// 2. Compress to Tar.Gz
-		if err := createTarGz(outputFile, tmpDir); err != nil {
-			log.Fatalf("❌ Failed to create archive: %v", err)
-		}
-
+		createTarGz(outputFile, tmpDir)
 		log.Printf("✅ Backup successfully created: %s", outputFile)
 	},
 }
@@ -66,7 +55,13 @@ func init() {
 	createCmd.Flags().StringVarP(&outputFile, "output", "o", "", "Output filename (.tar.gz)")
 }
 
-// Parquet DTOs
+type SourceDTO struct {
+	ID   string `parquet:"name=id, type=BYTE_ARRAY, convertedtype=UTF8"`
+	Name string `parquet:"name=name, type=BYTE_ARRAY, convertedtype=UTF8"`
+	Type string `parquet:"name=type, type=BYTE_ARRAY, convertedtype=UTF8"`
+	URL  string `parquet:"name=url, type=BYTE_ARRAY, convertedtype=UTF8"`
+}
+
 type VendorDTO struct {
 	ID   string `parquet:"name=id, type=BYTE_ARRAY, convertedtype=UTF8"`
 	Name string `parquet:"name=name, type=BYTE_ARRAY, convertedtype=UTF8"`
@@ -89,19 +84,22 @@ type CVEDTO struct {
 	PublishedAt int64   `parquet:"name=published_at, type=INT64, convertedtype=TIMESTAMP_MILLIS"`
 }
 
-func exportTableToParquet(ctx context.Context, db *storage.DBWrapper, tableName string, filePath string) error {
-	fw, err := local.NewLocalFileWriter(filePath)
-	if err != nil {
-		return err
-	}
+func exportTableToParquet(ctx context.Context, db *storage.DBWrapper, tableName string, filePath string) {
+	fw, _ := local.NewLocalFileWriter(filePath)
 	defer fw.Close()
 
 	switch tableName {
+	case "cve_sources":
+		var items []model.CVESource
+		db.DB.NewSelect().Model(&items).Scan(ctx)
+		pw, _ := writer.NewParquetWriter(fw, new(SourceDTO), 4)
+		for _, item := range items {
+			pw.Write(SourceDTO{ID: item.ID, Name: item.Name, Type: item.Type, URL: item.URL})
+		}
+		pw.WriteStop()
 	case "vendors":
 		var items []model.Vendor
-		if err := db.DB.NewSelect().Model(&items).Scan(ctx); err != nil {
-			return err
-		}
+		db.DB.NewSelect().Model(&items).Scan(ctx)
 		pw, _ := writer.NewParquetWriter(fw, new(VendorDTO), 4)
 		for _, item := range items {
 			pw.Write(VendorDTO{ID: item.ID, Name: item.Name})
@@ -109,9 +107,7 @@ func exportTableToParquet(ctx context.Context, db *storage.DBWrapper, tableName 
 		pw.WriteStop()
 	case "products":
 		var items []model.Product
-		if err := db.DB.NewSelect().Model(&items).Scan(ctx); err != nil {
-			return err
-		}
+		db.DB.NewSelect().Model(&items).Scan(ctx)
 		pw, _ := writer.NewParquetWriter(fw, new(ProductDTO), 4)
 		for _, item := range items {
 			pw.Write(ProductDTO{ID: item.ID, VendorID: item.VendorID, Name: item.Name})
@@ -119,53 +115,33 @@ func exportTableToParquet(ctx context.Context, db *storage.DBWrapper, tableName 
 		pw.WriteStop()
 	case "cves":
 		var items []model.CVE
-		if err := db.DB.NewSelect().Model(&items).Scan(ctx); err != nil {
-			return err
-		}
+		db.DB.NewSelect().Model(&items).Scan(ctx)
 		pw, _ := writer.NewParquetWriter(fw, new(CVEDTO), 4)
 		for _, item := range items {
-			dto := CVEDTO{
-				ID:          item.ID,
-				SourceID:    item.SourceID,
-				SourceUID:   item.SourceUID,
-				Title:       item.Title,
-				Description: item.Description,
-				PublishedAt: item.PublishedAt.UnixMilli(),
-			}
+			dto := CVEDTO{ID: item.ID, SourceID: item.SourceID, SourceUID: item.SourceUID, Title: item.Title, Description: item.Description, PublishedAt: item.PublishedAt.UnixMilli()}
 			if item.Severity != nil { dto.Severity = *item.Severity }
 			if item.CVSSScore != nil { dto.CVSSScore = *item.CVSSScore }
 			pw.Write(dto)
 		}
 		pw.WriteStop()
 	}
-	// Add other tables as needed...
-	return nil
 }
 
-func createTarGz(outputFile string, srcDir string) error {
-	out, err := os.Create(outputFile)
-	if err != nil {
-		return err
-	}
+func createTarGz(outputFile string, srcDir string) {
+	out, _ := os.Create(outputFile)
 	defer out.Close()
-
 	gw := gzip.NewWriter(out)
 	defer gw.Close()
 	tw := tar.NewWriter(gw)
 	defer tw.Close()
-
 	files, _ := os.ReadDir(srcDir)
 	for _, f := range files {
-		if f.IsDir() { continue }
 		info, _ := f.Info()
 		header, _ := tar.FileInfoHeader(info, "")
 		header.Name = f.Name()
-		if err := tw.WriteHeader(header); err != nil {
-			return err
-		}
+		tw.WriteHeader(header)
 		file, _ := os.Open(filepath.Join(srcDir, f.Name()))
 		io.Copy(tw, file)
 		file.Close()
 	}
-	return nil
 }

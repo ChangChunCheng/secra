@@ -31,7 +31,8 @@
 
 <div class="card">
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-        <h2>CVE Intelligence Feed (Page {{ .Page }})</h2>
+        <h2>CVE Intelligence Explorer</h2>
+        <span style="color: var(--text-secondary); font-size: 0.8rem;">Found {{ .TotalCount }} records | Page {{ .Page }} of {{ .TotalPages }}</span>
         <a href="/cves/new" class="btn">+ Add Custom CVE</a>
     </div>
     <table>
@@ -40,6 +41,7 @@
                 <th>Source</th>
                 <th>CVE ID</th>
                 <th>Affected Assets (Vendor:Product)</th>
+                <th>CVSS</th>
                 <th>Severity</th>
                 <th>Published (UTC)</th>
             </tr>
@@ -49,11 +51,12 @@
             <tr>
                 <td><span class="badge low">{{ .SourceName }}</span></td>
                 <td><a href="/cves/{{ .ID }}"><strong>{{ .SourceUID }}</strong></a></td>
-                <td style="max-width: 300px;">
+                <td style="max-width: 250px;">
                     <div style="font-size: 0.8rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="{{ .Assets }}">
-                        {{ if .Assets }}{{ .Assets }}{{ else }}<span style="color: var(--text-secondary); font-style: italic;">No assets linked</span>{{ end }}
+                        {{ if .Assets }}{{ .Assets }}{{ else }}<span style="color: var(--text-secondary); font-style: italic;">No assets</span>{{ end }}
                     </div>
                 </td>
+                <td><strong style="color: var(--accent-color);">{{ .CVSSScore }}</strong></td>
                 <td>
                     <span class="badge {{ if eq (derefString .Severity) "HIGH" }}high{{ else if eq (derefString .Severity) "MEDIUM" }}medium{{ else }}low{{ end }}">
                         {{ derefString .Severity }}
@@ -65,20 +68,60 @@
         </tbody>
     </table>
 
-    <div style="margin-top: 25px; display: flex; justify-content: center; gap: 20px; align-items: center;">
-        {{ if .HasPrev }}
-            <a href="/cves?page={{ sub .Page 1 }}&q={{ .Search }}&vendor={{ .Vendor }}&product={{ .Product }}&start_date={{ .StartDate }}&end_date={{ .EndDate }}" class="btn">← Previous</a>
-        {{ else }}
-            <span class="btn" style="opacity: 0.3; cursor: not-allowed;">← Previous</span>
-        {{ end }}
-        
-        <span style="color: var(--text-secondary); font-weight: bold;">Page {{ .Page }}</span>
+    <!-- Advanced Pagination -->
+    <div style="margin-top: 30px; display: flex; flex-direction: column; align-items: center; gap: 15px;">
+        <div style="display: flex; gap: 5px; align-items: center;">
+            {{ $search := .Search }}{{ $vendor := .Vendor }}{{ $product := .Product }}{{ $start := .StartDate }}{{ $end := .EndDate }}{{ $currentPage := .Page }}
+            
+            <!-- First Page -->
+            {{ if gt $currentPage 3 }}
+                <a href="/cves?page=1&q={{ $search }}&vendor={{ $vendor }}&product={{ $product }}&start_date={{ $start }}&end_date={{ $end }}" class="btn pag-btn">1</a>
+                <span style="color: var(--text-secondary);">...</span>
+            {{ end }}
 
-        {{ if .HasNext }}
-            <a href="/cves?page={{ add .Page 1 }}&q={{ .Search }}&vendor={{ .Vendor }}&product={{ .Product }}&start_date={{ .StartDate }}&end_date={{ .EndDate }}" class="btn">Next →</a>
-        {{ else }}
-            <span class="btn" style="opacity: 0.3; cursor: not-allowed;">Next →</span>
-        {{ end }}
+            <!-- Page Range -->
+            {{ range .Pages }}
+                <a href="/cves?page={{ . }}&q={{ $search }}&vendor={{ $vendor }}&product={{ $product }}&start_date={{ $start }}&end_date={{ $end }}" 
+                   class="btn pag-btn {{ if eq . $currentPage }}active{{ end }}">
+                    {{ . }}
+                </a>
+            {{ end }}
+
+            <!-- Last Page -->
+            {{ $lastPage := .TotalPages }}
+            {{ if lt $currentPage (sub $lastPage 2) }}
+                <span style="color: var(--text-secondary);">...</span>
+                <a href="/cves?page={{ $lastPage }}&q={{ $search }}&vendor={{ $vendor }}&product={{ $product }}&start_date={{ $start }}&end_date={{ $end }}" class="btn pag-btn">{{ $lastPage }}</a>
+            {{ end }}
+        </div>
+
+        <div style="font-size: 0.8rem; color: var(--text-secondary);">
+            <form action="/cves" method="GET" style="display: inline-flex; gap: 10px; align-items: center;">
+                <input type="hidden" name="q" value="{{ .Search }}">
+                <input type="hidden" name="vendor" value="{{ .Vendor }}">
+                <input type="hidden" name="product" value="{{ .Product }}">
+                Jump to page: <input type="number" name="page" min="1" max="{{ .TotalPages }}" style="width: 60px; padding: 2px 5px; margin-bottom: 0;">
+                <button type="submit" class="btn" style="padding: 2px 10px; font-size: 0.7rem;">Go</button>
+            </form>
+        </div>
     </div>
 </div>
+
+<style>
+    .pag-btn {
+        min-width: 35px;
+        height: 35px;
+        padding: 0 !important;
+        display: flex !important;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.8rem;
+    }
+    .pag-btn.active {
+        background-color: var(--accent-color);
+        color: var(--bg-color);
+        border-color: var(--accent-color);
+        box-shadow: 0 0 10px rgba(0, 255, 65, 0.3);
+    }
+</style>
 {{ end }}

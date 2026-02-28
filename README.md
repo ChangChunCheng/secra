@@ -23,39 +23,39 @@ docker compose up -d --build
 ### 2. 初始化資料庫
 在容器啟動後執行資料庫遷移：
 ```bash
-docker exec -it secra-web secra migrate up
+docker compose exec web secra migrate up
 ```
 
 ### 3. 建立管理員帳號
 ```bash
-docker exec -it secra-web secra user register --username admin --email admin@secra.io --password adminpassword
+docker compose exec web secra user register --username admin --email admin@secra.io --password adminpassword
 ```
 
 ## 📖 CLI 指令說明
 
-Secra 提供強大的 CLI 工具，可直接在 `web` 容器內執行：
+Secra 提供強大的 CLI 工具，透過 `docker compose exec web secra` 即可執行：
 
 ### 情報匯入 (NVD v2)
 ```bash
 # 自動補齊缺失區間
-docker exec -it secra-web secra import nvd v2 --start 2025-01-01
+docker compose exec web secra import nvd v2 --start 2025-01-01
 
 # 強制重新匯入特定日期
-docker exec -it secra-web secra import nvd v2 --start 2026-02-28 -f
+docker compose exec web secra import nvd v2 --start 2026-02-28 -f
 ```
 
 ### 系統備份與還原 (Parquet 格式)
 ```bash
 # 建立備份
-docker exec -it secra-web secra backup create -o /app/backup.tar.gz
+docker compose exec web secra backup create -o /app/backup.tar.gz
 
 # 執行還原
-docker exec -it secra-web secra backup restore /app/backup.tar.gz
+docker compose exec web secra backup restore /app/backup.tar.gz
 ```
 
 ### 健康檢查
 ```bash
-docker exec -it secra-web secra health check --type=db
+docker compose exec web secra health check --type=db
 ```
 
 ## 🏗 技術架構

@@ -3,6 +3,7 @@ package http_server
 import (
 	"html/template"
 	"log"
+	"math"
 	"net/http"
 	"path/filepath"
 	"strconv"
@@ -211,7 +212,6 @@ func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
 	timeRange := r.URL.Query().Get("range")
 	if timeRange == "" { timeRange = "1y" }
 
-	// Use pure UTC dates without time component for range queries
 	now := time.Now().UTC()
 	end := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC)
 	var start time.Time
@@ -237,64 +237,72 @@ func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
 	var labels []string
 	var data []int
 
-	log.Printf("Dashboard Query: range=%s, start=%s, end=%s", timeRange, start.Format("2006-01-02"), end.Format("2006-01-02"))
-
 	if timeRange == "5y" {
-		err := s.db.NewSelect().
-			Table("daily_cve_counts").
+		err := s.db.NewSelect().Table("daily_cve_counts").
 			ColumnExpr("DATE_TRUNC('month', day) as period, sum(count) as count").
 			Where("day >= ? AND day <= ?", start.Format("2006-01-02"), end.Format("2006-01-02")).
-			Group("period").
-			Order("period ASC").
-			Scan(r.Context(), &rows)
+			Group("period").Order("period ASC").Scan(r.Context(), &rows)
 		
 		if err == nil {
-			log.Printf("Fetched %d monthly rows", len(rows))
-			for _, r := range rows { dateMap[r.Period.Format("2006-01")] = r.Count }
-			for d := start; !d.After(end); d = d.AddDate(0, 1, 0) {
-				ms := d.Format("2006-01")
-				labels = append(labels, ms)
-				data = append(data, dateMap[ms])
+			for _, r := range rows { dateMap[r.Period.UTC().Format("2006-01-01")] = r.Count }
+			for d := start; !d.After(end); {
+				firstOfMonth := time.Date(d.Year(), d.Month(), 1, 0, 0, 0, 0, time.UTC)
+				ks := firstOfMonth.Format("2006-01-01")
+				labels = append(labels, ks)
+				data = append(data, dateMap[ks])
+				d = firstOfMonth.AddDate(0, 1, 0)
+			}
+		}
+	} else if timeRange == "1y" {
+		alignToMonday := func(t time.Time) time.Time {
+			wd := int(t.Weekday())
+			if wd == 0 { wd = 7 }
+			return t.AddDate(0, 0, -(wd - 1))
+		}
+		queryStart := alignToMonday(start)
+		err := s.db.NewSelect().Table("daily_cve_counts").
+			ColumnExpr("DATE_TRUNC('week', day) as period, sum(count) as count").
+			Where("day >= ? AND day <= ?", queryStart.Format("2006-01-02"), end.Format("2006-01-02")).
+			Group("period").Order("period ASC").Scan(r.Context(), &rows)
+		
+		if err == nil {
+			for _, r := range rows { dateMap[r.Period.UTC().Format("2006-01-02")] = r.Count }
+			for d := queryStart; !d.After(end); d = d.AddDate(0, 0, 7) {
+				ks := d.Format("2006-01-02")
+				labels = append(labels, ks)
+				data = append(data, dateMap[ks])
 			}
 		}
 	} else {
-		err := s.db.NewSelect().
-			Table("daily_cve_counts").
+		err := s.db.NewSelect().Table("daily_cve_counts").
 			ColumnExpr("day as period, count").
 			Where("day >= ? AND day <= ?", start.Format("2006-01-02"), end.Format("2006-01-02")).
-			Order("day ASC").
-			Scan(r.Context(), &rows)
+			Order("period ASC").Scan(r.Context(), &rows)
 		
 		if err == nil {
-			log.Printf("Fetched %d daily rows", len(rows))
-			for _, r := range rows { dateMap[r.Period.Format("2006-01-02")] = r.Count }
+			for _, r := range rows { dateMap[r.Period.UTC().Format("2006-01-02")] = r.Count }
 			for d := start; !d.After(end); d = d.AddDate(0, 0, 1) {
-				ds := d.Format("2006-01-02")
-				labels = append(labels, ds)
-				data = append(data, dateMap[ds])
+				ks := d.Format("2006-01-02")
+				labels = append(labels, ks)
+				data = append(data, dateMap[ks])
 			}
 		}
 	}
 
-	// Fetch Latest CVEs with Assets
 	type cveWithAssets struct {
 		model.CVE
 		SourceName string `bun:"source_name"`
 		Assets     string `bun:"assets"`
 	}
 	var recentCVEs []cveWithAssets
-	s.db.NewSelect().
-		TableExpr("cves AS c").
+	s.db.NewSelect().TableExpr("cves AS c").
 		ColumnExpr("c.*, cs.name AS source_name").
 		ColumnExpr("STRING_AGG(DISTINCT v.name || ':' || p.name, ', ') AS assets").
 		Join("LEFT JOIN cve_sources cs ON cs.id = c.source_id").
 		Join("LEFT JOIN cve_products cp ON cp.cve_id = c.id").
 		Join("LEFT JOIN products p ON p.id = cp.product_id").
 		Join("LEFT JOIN vendors v ON v.id = p.vendor_id").
-		Group("c.id", "cs.name").
-		Order("c.published_at DESC").
-		Limit(10).
-		Scan(r.Context(), &recentCVEs)
+		Group("c.id", "cs.name").Order("c.published_at DESC").Limit(10).Scan(r.Context(), &recentCVEs)
 
 	totalCVEs, _ := s.db.NewSelect().Model((*model.CVE)(nil)).Count(r.Context())
 	totalVendors, _ := s.db.NewSelect().Model((*model.Vendor)(nil)).Count(r.Context())
@@ -378,9 +386,17 @@ func (s *Server) handleCVEList(w http.ResponseWriter, r *http.Request) {
 	}
 
 	count, _ := query.Group("c.id", "cs.name").Count(r.Context())
-	err := query.Order("c.published_at DESC").Limit(limit).Offset(offset).Scan(r.Context(), &results)
-	if err != nil {
-		log.Printf("Query error: %v", err)
+	_ = query.Order("c.published_at DESC").Limit(limit).Offset(offset).Scan(r.Context(), &results)
+	
+	totalPages := int(math.Ceil(float64(count) / float64(limit)))
+	if totalPages == 0 { totalPages = 1 }
+
+	// Calculate pagination range (Current +/- 2)
+	var pages []int
+	for i := 1; i <= totalPages; i++ {
+		if i == 1 || i == totalPages || (i >= page-2 && i <= page+2) {
+			pages = append(pages, i)
+		}
 	}
 
 	s.render(w, r, "cve/list.html", map[string]interface{}{
@@ -392,7 +408,9 @@ func (s *Server) handleCVEList(w http.ResponseWriter, r *http.Request) {
 		"EndDate":    endDate,
 		"Page":       page,
 		"TotalCount": count,
-		"HasNext":    (offset + limit) < count,
+		"TotalPages": totalPages,
+		"Pages":      pages,
+		"HasNext":    page < totalPages,
 		"HasPrev":    page > 1,
 	})
 }

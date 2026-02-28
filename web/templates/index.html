@@ -42,7 +42,7 @@
 
 <div class="card" style="margin-top: 20px;">
     <h2>CVE Publication Trend ({{ .ActiveRange }})</h2>
-    <div style="height: 350px; min-height: 350px; width: 100%; position: relative;">
+    <div style="height: 350px; min-height: 350px; width: 100%; position: relative; background: rgba(0,0,0,0.2); border-radius: 4px; padding: 10px;">
         <canvas id="cveChart"></canvas>
     </div>
 </div>
@@ -92,8 +92,11 @@
 
     const chartLabels = [{{ range .ChartLabels }}'{{ . }}',{{ end }}];
     const chartData = [{{ range .ChartData }}{{ . }},{{ end }}];
-    
-    console.log("Chart Debug:", { labelsCount: chartLabels.length, dataCount: chartData.length });
+    const rangeType = '{{ .ActiveRange }}';
+
+    function formatDate(date) {
+        return date.toISOString().split('T')[0];
+    }
 
     const ctx = document.getElementById('cveChart').getContext('2d');
     new Chart(ctx, {
@@ -101,12 +104,13 @@
         data: {
             labels: chartLabels,
             datasets: [{
-                label: 'CVEs Published',
+                label: 'CVEs',
                 data: chartData,
                 borderColor: '#00ff41',
-                backgroundColor: 'rgba(0, 255, 65, 0.05)',
+                backgroundColor: 'rgba(0, 255, 65, 0.1)',
                 borderWidth: 2,
-                pointRadius: {{ if eq .ActiveRange "5y" }}0{{ else }}2{{ end }},
+                pointRadius: (rangeType === '5y' || rangeType === '1y') ? 0 : 3,
+                pointHoverRadius: 5,
                 fill: true,
                 tension: 0.3
             }]
@@ -114,9 +118,14 @@
         options: {
             maintainAspectRatio: false,
             responsive: true,
+            interaction: {
+                intersect: false,
+                mode: 'index',
+            },
             scales: {
                 y: { 
                     beginAtZero: true, 
+                    suggestedMax: 10,
                     grid: { color: 'rgba(255, 255, 255, 0.05)' }, 
                     ticks: { color: '#8b949e' } 
                 },
@@ -125,11 +134,41 @@
                     ticks: { 
                         color: '#8b949e',
                         autoSkip: true,
-                        maxTicksLimit: 15
+                        maxTicksLimit: 12
                     } 
                 }
             },
-            plugins: { legend: { display: false } }
+            plugins: { 
+                legend: { display: false },
+                tooltip: {
+                    backgroundColor: '#161b22',
+                    titleColor: '#00ff41',
+                    bodyColor: '#c9d1d9',
+                    borderColor: '#30363d',
+                    borderWidth: 1,
+                    displayColors: false,
+                    callbacks: {
+                        title: function(context) {
+                            let label = context[0].label;
+                            let start = new Date(label + 'T00:00:00Z');
+                            if (rangeType === '1y') {
+                                let end = new Date(start);
+                                end.setUTCDate(start.getUTCDate() + 6);
+                                return 'Interval: ' + formatDate(start) + ' ~ ' + formatDate(end);
+                            }
+                            if (rangeType === '5y') {
+                                // Last day of month
+                                let end = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + 1, 0));
+                                return 'Interval: ' + formatDate(start) + ' ~ ' + formatDate(end);
+                            }
+                            return 'Date: ' + label;
+                        },
+                        label: function(context) {
+                            return 'Published CVEs: ' + context.parsed.y;
+                        }
+                    }
+                }
+            }
         }
     });
 </script>
