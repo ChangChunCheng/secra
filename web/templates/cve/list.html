@@ -1,39 +1,37 @@
 {{ define "content" }}
-<div class="card" style="margin-bottom: 20px;">
+<div class="card">
     <h2>CVE Advanced Search</h2>
-    <form action="/cves" method="GET" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; align-items: end;">
-        <div>
+    <form action="/cves" method="GET" class="search-toolbar">
+        <div class="search-field" style="flex: 1.5;">
             <label for="q">Keyword / CVE ID</label>
             <input type="text" name="q" value="{{ .Search }}" placeholder="e.g. CVE-2026 or XSS">
         </div>
-        <div>
+        <div class="search-field" style="flex: 1;">
             <label for="vendor">Vendor</label>
             <input type="text" name="vendor" value="{{ .Vendor }}" placeholder="e.g. Microsoft">
         </div>
-        <div>
+        <div class="search-field" style="flex: 1;">
             <label for="product">Product</label>
             <input type="text" name="product" value="{{ .Product }}" placeholder="e.g. Windows">
         </div>
-        <div>
-            <label for="start_date">From Date</label>
+        <div class="search-field">
+            <label for="start_date">From</label>
             <input type="date" name="start_date" value="{{ .StartDate }}">
         </div>
-        <div>
-            <label for="end_date">To Date</label>
+        <div class="search-field">
+            <label for="end_date">To</label>
             <input type="date" name="end_date" value="{{ .EndDate }}">
         </div>
-        <div style="display: flex; gap: 10px;">
-            <button type="submit" class="btn" style="flex: 1;">Search</button>
-            <a href="/cves" class="btn" style="border-color: var(--text-secondary); color: var(--text-secondary);">Reset</a>
-        </div>
+        <button type="submit" class="btn">Search</button>
+        <a href="/cves" class="btn" style="border-color: var(--text-secondary); color: var(--text-secondary);">Reset</a>
     </form>
 </div>
 
 <div class="card">
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
         <h2>CVE Intelligence Explorer</h2>
-        <span style="color: var(--text-secondary); font-size: 0.8rem;">Found {{ .TotalCount }} records | Page {{ .Page }} of {{ .TotalPages }}</span>
-        <a href="/cves/new" class="btn">+ Add Custom CVE</a>
+        <span style="color: var(--text-secondary); font-size: 0.8rem;">Total: {{ .TotalCount }} | Page {{ .Page }} of {{ .TotalPages }}</span>
+        <a href="/cves/new" class="btn" style="border-color: var(--warning-color); color: var(--warning-color);">+ Add Custom CVE</a>
     </div>
     <table>
         <thead>
@@ -47,6 +45,7 @@
             </tr>
         </thead>
         <tbody>
+            {{ $sourceMap := .SourceMap }}
             {{ range .CVEs }}
             <tr>
                 <td><span class="badge low">{{ .SourceName }}</span></td>
@@ -68,18 +67,18 @@
         </tbody>
     </table>
 
-    <!-- Advanced Pagination -->
+    <!-- Pagination -->
     <div style="margin-top: 30px; display: flex; flex-direction: column; align-items: center; gap: 15px;">
         <div style="display: flex; gap: 5px; align-items: center;">
-            {{ $search := .Search }}{{ $vendor := .Vendor }}{{ $product := .Product }}{{ $start := .StartDate }}{{ $end := .EndDate }}{{ $currentPage := .Page }}
+            {{ $search := .Search }}{{ $vendor := .Vendor }}{{ $product := .Product }}{{ $start := .StartDate }}{{ $end := .EndDate }}{{ $currentPage := .Page }}{{ $totalPages := .TotalPages }}
             
-            <!-- First Page -->
-            {{ if gt $currentPage 3 }}
-                <a href="/cves?page=1&q={{ $search }}&vendor={{ $vendor }}&product={{ $product }}&start_date={{ $start }}&end_date={{ $end }}" class="btn pag-btn">1</a>
-                <span style="color: var(--text-secondary);">...</span>
+            {{ if .HasPrev }}
+                <a href="/cves?page=1&q={{ $search }}&vendor={{ $vendor }}&product={{ $product }}&start_date={{ $start }}&end_date={{ $end }}" class="btn pag-btn" title="First Page">« First</a>
+                <a href="/cves?page={{ sub .Page 1 }}&q={{ $search }}&vendor={{ $vendor }}&product={{ $product }}&start_date={{ $start }}&end_date={{ $end }}" class="btn pag-btn" title="Previous Page">‹ Past</a>
             {{ end }}
 
-            <!-- Page Range -->
+            {{ if gt (index .Pages 0) 1 }}<span style="color: var(--text-secondary);">...</span>{{ end }}
+
             {{ range .Pages }}
                 <a href="/cves?page={{ . }}&q={{ $search }}&vendor={{ $vendor }}&product={{ $product }}&start_date={{ $start }}&end_date={{ $end }}" 
                    class="btn pag-btn {{ if eq . $currentPage }}active{{ end }}">
@@ -87,41 +86,26 @@
                 </a>
             {{ end }}
 
-            <!-- Last Page -->
-            {{ $lastPage := .TotalPages }}
-            {{ if lt $currentPage (sub $lastPage 2) }}
-                <span style="color: var(--text-secondary);">...</span>
-                <a href="/cves?page={{ $lastPage }}&q={{ $search }}&vendor={{ $vendor }}&product={{ $product }}&start_date={{ $start }}&end_date={{ $end }}" class="btn pag-btn">{{ $lastPage }}</a>
+            {{ if lt (index .Pages (sub (len .Pages) 1)) $totalPages }}<span style="color: var(--text-secondary);">...</span>{{ end }}
+
+            {{ if .HasNext }}
+                <a href="/cves?page={{ add .Page 1 }}&q={{ $search }}&vendor={{ $vendor }}&product={{ $product }}&start_date={{ $start }}&end_date={{ $end }}" class="btn pag-btn" title="Next Page">Next ›</a>
+                <a href="/cves?page={{ $totalPages }}&q={{ $search }}&vendor={{ $vendor }}&product={{ $product }}&start_date={{ $start }}&end_date={{ $end }}" class="btn pag-btn" title="Last Page">Last »</a>
             {{ end }}
         </div>
 
         <div style="font-size: 0.8rem; color: var(--text-secondary);">
             <form action="/cves" method="GET" style="display: inline-flex; gap: 10px; align-items: center;">
-                <input type="hidden" name="q" value="{{ .Search }}">
-                <input type="hidden" name="vendor" value="{{ .Vendor }}">
-                <input type="hidden" name="product" value="{{ .Product }}">
-                Jump to page: <input type="number" name="page" min="1" max="{{ .TotalPages }}" style="width: 60px; padding: 2px 5px; margin-bottom: 0;">
-                <button type="submit" class="btn" style="padding: 2px 10px; font-size: 0.7rem;">Go</button>
+                <input type="hidden" name="q" value="{{ .Search }}"><input type="hidden" name="vendor" value="{{ .Vendor }}"><input type="hidden" name="product" value="{{ .Product }}">
+                Jump to: <input type="number" name="page" min="1" max="{{ .TotalPages }}" value="{{ .Page }}" style="width: 60px; padding: 2px 5px; margin-bottom: 0; height: 30px;">
+                <button type="submit" class="btn" style="height: 30px; padding: 0 10px; font-size: 0.7rem;">Go</button>
             </form>
         </div>
     </div>
 </div>
 
 <style>
-    .pag-btn {
-        min-width: 35px;
-        height: 35px;
-        padding: 0 !important;
-        display: flex !important;
-        align-items: center;
-        justify-content: center;
-        font-size: 0.8rem;
-    }
-    .pag-btn.active {
-        background-color: var(--accent-color);
-        color: var(--bg-color);
-        border-color: var(--accent-color);
-        box-shadow: 0 0 10px rgba(0, 255, 65, 0.3);
-    }
+    .pag-btn { min-width: 40px; height: 35px; padding: 0 10px !important; display: flex !important; align-items: center; justify-content: center; font-size: 0.8rem; }
+    .pag-btn.active { background-color: var(--accent-color); color: var(--bg-color); border-color: var(--accent-color); box-shadow: 0 0 10px rgba(0, 255, 65, 0.3); }
 </style>
 {{ end }}

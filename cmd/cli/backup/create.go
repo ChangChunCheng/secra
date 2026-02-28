@@ -38,8 +38,8 @@ var createCmd = &cobra.Command{
 
 		log.Printf("📦 Starting backup process to %s...", outputFile)
 
-		// Added cve_sources to the list
-		tables := []string{"cve_sources", "vendors", "products", "cves", "users", "subscriptions"}
+		// Added cve_products to the list
+		tables := []string{"cve_sources", "vendors", "products", "cves", "cve_products", "users", "subscriptions"}
 		for _, table := range tables {
 			parquetFile := filepath.Join(tmpDir, table+".parquet")
 			log.Printf("📄 Exporting table [%s]...", table)
@@ -84,6 +84,11 @@ type CVEDTO struct {
 	PublishedAt int64   `parquet:"name=published_at, type=INT64, convertedtype=TIMESTAMP_MILLIS"`
 }
 
+type CVEProductDTO struct {
+	CVEID     string `parquet:"name=cve_id, type=BYTE_ARRAY, convertedtype=UTF8"`
+	ProductID string `parquet:"name=product_id, type=BYTE_ARRAY, convertedtype=UTF8"`
+}
+
 func exportTableToParquet(ctx context.Context, db *storage.DBWrapper, tableName string, filePath string) {
 	fw, _ := local.NewLocalFileWriter(filePath)
 	defer fw.Close()
@@ -122,6 +127,14 @@ func exportTableToParquet(ctx context.Context, db *storage.DBWrapper, tableName 
 			if item.Severity != nil { dto.Severity = *item.Severity }
 			if item.CVSSScore != nil { dto.CVSSScore = *item.CVSSScore }
 			pw.Write(dto)
+		}
+		pw.WriteStop()
+	case "cve_products":
+		var items []model.CVEProduct
+		db.DB.NewSelect().Model(&items).Scan(ctx)
+		pw, _ := writer.NewParquetWriter(fw, new(CVEProductDTO), 4)
+		for _, item := range items {
+			pw.Write(CVEProductDTO{CVEID: item.CVEID, ProductID: item.ProductID})
 		}
 		pw.WriteStop()
 	}

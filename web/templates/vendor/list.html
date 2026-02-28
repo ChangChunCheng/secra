@@ -1,8 +1,8 @@
 {{ define "content" }}
-<div class="card" style="margin-bottom: 20px;">
+<div class="card">
     <h2>Search Vendors</h2>
-    <form action="/vendors" method="GET" style="display: flex; gap: 15px; align-items: end;">
-        <div style="flex: 1;">
+    <form action="/vendors" method="GET" class="search-toolbar">
+        <div class="search-field" style="flex: 1;">
             <label for="q">Vendor Name</label>
             <input type="text" name="q" value="{{ .Search }}" placeholder="e.g. Microsoft, Google...">
         </div>
@@ -14,7 +14,7 @@
 <div class="card">
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
         <h2>Tracked Vendors</h2>
-        <span style="color: var(--text-secondary); font-size: 0.8rem;">Found {{ .TotalCount }} vendors | Page {{ .Page }} of {{ .TotalPages }}</span>
+        <span style="color: var(--text-secondary); font-size: 0.8rem;">Total: {{ .TotalCount }} | Page {{ .Page }} of {{ .TotalPages }}</span>
     </div>
     <table>
         <thead>
@@ -33,7 +33,7 @@
                     <form action="/subscribe" method="POST" style="display:inline;">
                         <input type="hidden" name="target_type" value="vendor">
                         <input type="hidden" name="target_id" value="{{ .ID }}">
-                        <button type="submit" class="btn" style="font-size: 0.7rem; padding: 4px 8px;">Subscribe</button>
+                        <button type="submit" class="btn" style="font-size: 0.7rem; padding: 0 10px; height: 30px;">Subscribe</button>
                     </form>
                 </td>
             </tr>
@@ -41,22 +41,23 @@
         </tbody>
     </table>
 
-    <!-- Advanced Pagination -->
+    <!-- Pagination -->
     <div style="margin-top: 30px; display: flex; flex-direction: column; align-items: center; gap: 15px;">
         <div style="display: flex; gap: 5px; align-items: center;">
             {{ $search := .Search }}{{ $currentPage := .Page }}{{ $totalPages := .TotalPages }}
+            {{ if gt $currentPage 1 }}<a href="/vendors?page=1&q={{ $search }}" class="btn pag-btn">« First</a>{{ end }}
+            {{ if gt (index .Pages 0) 1 }}<span style="color: var(--text-secondary);">...</span>{{ end }}
             {{ range .Pages }}
-                <a href="/vendors?page={{ . }}&q={{ $search }}" 
-                   class="btn pag-btn {{ if eq . $currentPage }}active{{ end }}">
-                    {{ . }}
-                </a>
+                <a href="/vendors?page={{ . }}&q={{ $search }}" class="btn pag-btn {{ if eq . $currentPage }}active{{ end }}">{{ . }}</a>
             {{ end }}
+            {{ if lt (index .Pages (sub (len .Pages) 1)) $totalPages }}<span style="color: var(--text-secondary);">...</span>{{ end }}
+            {{ if lt $currentPage $totalPages }}<a href="/vendors?page={{ $totalPages }}&q={{ $search }}" class="btn pag-btn">Last »</a>{{ end }}
         </div>
     </div>
 </div>
 
 <style>
-    .pag-btn { min-width: 35px; height: 35px; padding: 0 !important; display: flex !important; align-items: center; justify-content: center; font-size: 0.8rem; }
+    .pag-btn { min-width: 40px; height: 35px; padding: 0 10px !important; display: flex !important; align-items: center; justify-content: center; font-size: 0.8rem; }
     .pag-btn.active { background-color: var(--accent-color); color: var(--bg-color); border-color: var(--accent-color); box-shadow: 0 0 10px rgba(0, 255, 65, 0.3); }
 </style>
 {{ end }}

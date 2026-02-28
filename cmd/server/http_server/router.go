@@ -16,6 +16,7 @@ import (
 	"gitlab.com/jacky850509/secra/internal/model"
 	"gitlab.com/jacky850509/secra/internal/repo"
 	"gitlab.com/jacky850509/secra/internal/service"
+	"gitlab.com/jacky850509/secra/internal/util"
 )
 
 type Server struct {
@@ -361,7 +362,7 @@ func (s *Server) handleCVEList(w http.ResponseWriter, r *http.Request) {
 		ColumnExpr("c.*, cs.name AS source_name").
 		ColumnExpr("STRING_AGG(DISTINCT v.name || ':' || p.name, ', ') AS assets").
 		Join("LEFT JOIN cve_sources cs ON cs.id = c.source_id").
-		Join("LEFT JOIN cve_products cp ON cp.product_id = c.id").
+		Join("LEFT JOIN cve_products cp ON cp.cve_id = c.id").
 		Join("LEFT JOIN products p ON p.id = cp.product_id").
 		Join("LEFT JOIN vendors v ON v.id = p.vendor_id")
 
@@ -392,10 +393,12 @@ func (s *Server) handleCVEList(w http.ResponseWriter, r *http.Request) {
 	if totalPages == 0 { totalPages = 1 }
 
 	var pages []int
-	for i := 1; i <= totalPages; i++ {
-		if i == 1 || i == totalPages || (i >= page-2 && i <= page+2) {
-			pages = append(pages, i)
-		}
+	startPage := page - 2
+	if startPage < 1 { startPage = 1 }
+	endPage := page + 2
+	if endPage > totalPages { endPage = totalPages }
+	for i := startPage; i <= endPage; i++ {
+		pages = append(pages, i)
 	}
 
 	s.render(w, r, "cve/list.html", map[string]interface{}{
@@ -458,7 +461,7 @@ func (s *Server) handleCVENew(w http.ResponseWriter, r *http.Request) {
 		s.db.NewInsert().Model(source).Exec(r.Context())
 	}
 	cve := &model.CVE{
-		ID: uuid.New().String(), SourceID: source.ID, SourceUID: sourceUID, Title: title,
+		ID: util.CVEID(sourceUID), SourceID: source.ID, SourceUID: sourceUID, Title: title,
 		Description: description, Severity: &severity, CVSSScore: &cvssScore,
 		Status: "active", PublishedAt: time.Now().UTC(), UpdatedAt: time.Now().UTC(),
 	}
@@ -495,8 +498,12 @@ func (s *Server) handleVendorList(w http.ResponseWriter, r *http.Request) {
 	totalPages := int(math.Ceil(float64(count) / float64(limit)))
 	if totalPages == 0 { totalPages = 1 }
 	var pages []int
-	for i := 1; i <= totalPages; i++ {
-		if i == 1 || i == totalPages || (i >= page-2 && i <= page+2) { pages = append(pages, i) }
+	startPage := page - 2
+	if startPage < 1 { startPage = 1 }
+	endPage := page + 2
+	if endPage > totalPages { endPage = totalPages }
+	for i := startPage; i <= endPage; i++ {
+		pages = append(pages, i)
 	}
 
 	s.render(w, r, "vendor/list.html", map[string]interface{}{
@@ -506,6 +513,8 @@ func (s *Server) handleVendorList(w http.ResponseWriter, r *http.Request) {
 		"TotalCount": count,
 		"TotalPages": totalPages,
 		"Pages":      pages,
+		"HasNext":    page < totalPages,
+		"HasPrev":    page > 1,
 	})
 }
 
@@ -542,8 +551,12 @@ func (s *Server) handleProductList(w http.ResponseWriter, r *http.Request) {
 	totalPages := int(math.Ceil(float64(count) / float64(limit)))
 	if totalPages == 0 { totalPages = 1 }
 	var pages []int
-	for i := 1; i <= totalPages; i++ {
-		if i == 1 || i == totalPages || (i >= page-2 && i <= page+2) { pages = append(pages, i) }
+	startPage := page - 2
+	if startPage < 1 { startPage = 1 }
+	endPage := page + 2
+	if endPage > totalPages { endPage = totalPages }
+	for i := startPage; i <= endPage; i++ {
+		pages = append(pages, i)
 	}
 
 	s.render(w, r, "product/list.html", map[string]interface{}{
@@ -554,6 +567,8 @@ func (s *Server) handleProductList(w http.ResponseWriter, r *http.Request) {
 		"TotalCount": count,
 		"TotalPages": totalPages,
 		"Pages":      pages,
+		"HasNext":    page < totalPages,
+		"HasPrev":    page > 1,
 	})
 }
 

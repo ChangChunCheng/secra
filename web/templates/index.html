@@ -1,76 +1,67 @@
 {{ define "content" }}
-<div class="card">
-    <div style="display: flex; justify-content: space-between; align-items: center;">
-        <h2>Vulnerability Intelligence Dashboard</h2>
-        <div style="display: flex; gap: 5px;">
-            <a href="/?range=5y" class="btn {{ if eq .ActiveRange "5y" }}active{{ end }}" style="font-size: 0.7rem;">5Y</a>
-            <a href="/?range=1y" class="btn {{ if eq .ActiveRange "1y" }}active{{ end }}" style="font-size: 0.7rem;">1Y</a>
-            <a href="/?range=1m" class="btn {{ if eq .ActiveRange "1m" }}active{{ end }}" style="font-size: 0.7rem;">1M</a>
-            <a href="/?range=1w" class="btn {{ if eq .ActiveRange "1w" }}active{{ end }}" style="font-size: 0.7rem;">1W</a>
-            <button onclick="toggleCustomRange()" class="btn {{ if eq .ActiveRange "custom" }}active{{ end }}" style="font-size: 0.7rem;">Custom</button>
-        </div>
+<!-- Compact Stats Header -->
+<div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 25px;">
+    <div class="stat-mini-card">
+        <span class="stat-label">Total CVEs</span>
+        <span class="stat-value">{{ .TotalCVEs }}</span>
     </div>
-    
-    <form id="customRangeForm" action="/" method="GET" style="display: {{ if eq .ActiveRange "custom" }}flex{{ else }}none{{ end }}; margin-top: 15px; gap: 10px; align-items: flex-end; justify-content: flex-end; border-top: 1px solid var(--border-color); padding-top: 15px;">
-        <input type="hidden" name="range" value="custom">
-        <div style="width: 150px;">
-            <label style="font-size: 0.7rem; color: var(--text-secondary);">From</label>
-            <input type="date" name="start" value="{{ .StartStr }}" style="margin-bottom: 0; padding: 5px;">
-        </div>
-        <div style="width: 150px;">
-            <label style="font-size: 0.7rem; color: var(--text-secondary);">To</label>
-            <input type="date" name="end" value="{{ .EndStr }}" style="margin-bottom: 0; padding: 5px;">
-        </div>
-        <button type="submit" class="btn" style="padding: 5px 15px;">Apply</button>
-    </form>
+    <div class="stat-mini-card">
+        <span class="stat-label">Vendors</span>
+        <span class="stat-value">{{ .TotalVendors }}</span>
+    </div>
+    <div class="stat-mini-card">
+        <span class="stat-label">Products</span>
+        <span class="stat-value">{{ .TotalProducts }}</span>
+    </div>
 </div>
 
 <div class="grid">
-    <div class="card">
-        <h3>Total CVEs</h3>
-        <h1 style="font-size: 3rem; color: var(--accent-color);">{{ .TotalCVEs }}</h1>
+    <!-- Chart Section -->
+    <div class="card" style="grid-column: span 2;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+            <h2>Vulnerability Trends</h2>
+            <div class="btn-group">
+                <a href="/?range=1w" class="btn btn-sm {{ if eq .ActiveRange "1w" }}active{{ end }}">1W</a>
+                <a href="/?range=1m" class="btn btn-sm {{ if eq .ActiveRange "1m" }}active{{ end }}">1M</a>
+                <a href="/?range=1y" class="btn btn-sm {{ if eq .ActiveRange "1y" }}active{{ end }}">1Y</a>
+                <a href="/?range=5y" class="btn btn-sm {{ if eq .ActiveRange "5y" }}active{{ end }}">5Y</a>
+            </div>
+        </div>
+        <div style="height: 300px; position: relative;">
+            <canvas id="cveChart"></canvas>
+        </div>
     </div>
+
+    <!-- Quick Links / Actions -->
     <div class="card">
-        <h3>Tracked Vendors</h3>
-        <h1 style="font-size: 3rem; color: var(--accent-color);">{{ .TotalVendors }}</h1>
-    </div>
-    <div class="card">
-        <h3>Monitored Products</h3>
-        <h1 style="font-size: 3rem; color: var(--accent-color);">{{ .TotalProducts }}</h1>
+        <h2>Quick Actions</h2>
+        <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 15px;">
+            <a href="/cves" class="btn">Search All CVEs</a>
+            <a href="/vendors" class="btn">Browse Vendors</a>
+            <a href="/my/dashboard" class="btn" style="border-color: var(--warning-color); color: var(--warning-color);">My Subscriptions</a>
+        </div>
     </div>
 </div>
 
 <div class="card" style="margin-top: 20px;">
-    <h2>CVE Publication Trend ({{ .ActiveRange }})</h2>
-    <div style="height: 350px; min-height: 350px; width: 100%; position: relative; background: rgba(0,0,0,0.2); border-radius: 4px; padding: 10px;">
-        <canvas id="cveChart"></canvas>
-    </div>
-</div>
-
-<div class="card" style="margin-top: 20px;">
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-        <h2>Latest Vulnerabilities</h2>
-        <a href="/cves" style="font-size: 0.8rem; color: var(--accent-color);">View All CVEs →</a>
-    </div>
+    <h2>Latest Discovered Vulnerabilities</h2>
     <table>
         <thead>
             <tr>
-                <th>Source</th>
                 <th>CVE ID</th>
-                <th>Affected Assets (Vendor:Product)</th>
+                <th>Source</th>
+                <th>Affected Assets</th>
                 <th>Severity</th>
-                <th>Published (UTC)</th>
+                <th>Published</th>
             </tr>
         </thead>
         <tbody>
             {{ range .RecentCVEs }}
             <tr>
-                <td><span class="badge low">{{ .SourceName }}</span></td>
                 <td><a href="/cves/{{ .ID }}"><strong>{{ .SourceUID }}</strong></a></td>
-                <td style="max-width: 300px;">
-                    <div style="font-size: 0.8rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="{{ .Assets }}">
-                        {{ if .Assets }}{{ .Assets }}{{ else }}<span style="color: var(--text-secondary); font-style: italic;">No assets linked</span>{{ end }}
-                    </div>
+                <td><span class="badge low">{{ .SourceName }}</span></td>
+                <td style="max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                    {{ if .Assets }}{{ .Assets }}{{ else }}<span style="color: var(--text-secondary); font-style: italic;">Unknown</span>{{ end }}
                 </td>
                 <td>
                     <span class="badge {{ if eq (derefString .Severity) "HIGH" }}high{{ else if eq (derefString .Severity) "MEDIUM" }}medium{{ else }}low{{ end }}">
@@ -84,61 +75,50 @@
     </table>
 </div>
 
+<style>
+    .stat-mini-card {
+        background-color: var(--card-bg);
+        border-left: 4px solid var(--accent-color);
+        padding: 15px 20px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        border-radius: 4px;
+        box-shadow: 3px 3px 0px var(--border-color);
+    }
+    .stat-label { font-size: 0.7rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 1px; }
+    .stat-value { font-size: 1.8rem; font-weight: 900; color: var(--accent-color); line-height: 1.2; }
+    
+    .btn-sm { padding: 4px 10px !important; font-size: 0.7rem !important; height: auto !important; }
+    .btn-sm.active { background-color: var(--accent-color); color: var(--bg-color); }
+</style>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-    function toggleCustomRange() {
-        const form = document.getElementById('customRangeForm');
-        form.style.display = form.style.display === 'none' ? 'flex' : 'none';
-    }
-
-    const chartLabels = [{{ range .ChartLabels }}'{{ . }}',{{ end }}];
-    const chartData = [{{ range .ChartData }}{{ . }},{{ end }}];
-    const rangeType = '{{ .ActiveRange }}';
-
-    function formatDate(date) {
-        return date.toISOString().split('T')[0];
-    }
-
     const ctx = document.getElementById('cveChart').getContext('2d');
     new Chart(ctx, {
         type: 'line',
         data: {
-            labels: chartLabels,
+            labels: {{ .ChartLabels }},
             datasets: [{
-                label: 'CVEs',
-                data: chartData,
+                label: 'New CVEs',
+                data: {{ .ChartData }},
                 borderColor: '#00ff41',
                 backgroundColor: 'rgba(0, 255, 65, 0.1)',
                 borderWidth: 2,
-                pointRadius: (rangeType === '5y' || rangeType === '1y') ? 0 : 3,
-                pointHoverRadius: 5,
                 fill: true,
-                tension: 0.3
+                tension: 0.4,
+                pointRadius: 2
             }]
         },
         options: {
-            maintainAspectRatio: false,
             responsive: true,
-            interaction: {
-                intersect: false,
-                mode: 'index',
-            },
+            maintainAspectRatio: false,
             scales: {
-                y: { 
-                    beginAtZero: true, 
-                    suggestedMax: 10,
-                    grid: { color: 'rgba(255, 255, 255, 0.05)' }, 
-                    ticks: { color: '#8b949e' } 
-                },
-                x: { 
-                    grid: { display: false }, 
-                    ticks: { 
-                        color: '#8b949e',
-                        autoSkip: true,
-                        maxTicksLimit: 12
-                    } 
-                }
+                y: { beginAtZero: true, grid: { color: '#30363d' }, ticks: { color: '#8b949e' } },
+                x: { grid: { display: false }, ticks: { color: '#8b949e', maxRotation: 45, minRotation: 45 } }
             },
-            plugins: { 
+            plugins: {
                 legend: { display: false },
                 tooltip: {
                     backgroundColor: '#161b22',
@@ -146,25 +126,22 @@
                     bodyColor: '#c9d1d9',
                     borderColor: '#30363d',
                     borderWidth: 1,
-                    displayColors: false,
                     callbacks: {
                         title: function(context) {
-                            let label = context[0].label;
-                            let start = new Date(label + 'T00:00:00Z');
-                            if (rangeType === '1y') {
-                                let end = new Date(start);
-                                end.setUTCDate(start.getUTCDate() + 6);
-                                return 'Interval: ' + formatDate(start) + ' ~ ' + formatDate(end);
+                            let val = context[0].label;
+                            let range = "{{ .ActiveRange }}";
+                            if (range === "1y") {
+                                let d = new Date(val);
+                                let end = new Date(d);
+                                end.setDate(d.getDate() + 6);
+                                return "Interval: " + val + " ~ " + end.toISOString().split('T')[0];
+                            } else if (range === "5y") {
+                                let parts = val.split('-');
+                                let d = new Date(parts[0], parts[1]-1, 1);
+                                let end = new Date(parts[0], parts[1], 0);
+                                return "Interval: " + val + " ~ " + end.toISOString().split('T')[0];
                             }
-                            if (rangeType === '5y') {
-                                // Last day of month
-                                let end = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + 1, 0));
-                                return 'Interval: ' + formatDate(start) + ' ~ ' + formatDate(end);
-                            }
-                            return 'Date: ' + label;
-                        },
-                        label: function(context) {
-                            return 'Published CVEs: ' + context.parsed.y;
+                            return "Date: " + val;
                         }
                     }
                 }
@@ -172,12 +149,4 @@
         }
     });
 </script>
-
-<style>
-    .btn.active {
-        background-color: var(--accent-color);
-        color: var(--bg-color);
-        box-shadow: 0 0 10px rgba(0, 255, 65, 0.4);
-    }
-</style>
 {{ end }}

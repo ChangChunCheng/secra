@@ -132,7 +132,6 @@ func findMissingIntervals(ctx context.Context, db *bun.DB, start, end time.Time)
 func ImportNvdv2Chunk(ctx context.Context, db *bun.DB, cfg *config.AppConfig, start, end time.Time) {
 	pageSize := 2000
 	startIndex := 0
-	// Use deterministic ID for source
 	sourceID := util.SourceID("nvd-v2")
 	source, _ := ensureCveSourceWithID(db, sourceID, "nvd-v2", "NVD v2 API", cfg.NvdURLv2)
 
@@ -145,7 +144,7 @@ func ImportNvdv2Chunk(ctx context.Context, db *bun.DB, cfg *config.AppConfig, st
 		if err != nil { return }
 
 		var feed nvd_v2_parser.Nvdv2CveFeed
-		json.Unmarshal(data, &feed)
+		if err := json.Unmarshal(data, &feed); err != nil { return }
 		if len(feed.Vulnerabilities) == 0 { break }
 
 		cves, _ := nvd_v2_parser.ConvertToCVEsFromV2(&feed)
@@ -153,30 +152,12 @@ func ImportNvdv2Chunk(ctx context.Context, db *bun.DB, cfg *config.AppConfig, st
 
 		v, p, rel, ref, w := nvd_v2_parser.ExtractAllFromV2(&feed)
 		
-		// Insert with deterministic IDs
-		importer.ImportVendorsAndProductsFromv2(db, v, nil, nil, nil, nil)
-		importer.ImportVendorsAndProductsFromv2(db, nil, p, nil, nil, nil)
-
-		productMap := make(map[string]string)
-		for _, prod := range p {
-			// Find vendor name from vendor list to build key
-			// Simplification: use parse logic to rebuild key
-			// But since we use UUID v5, the ID IS the key!
-			productMap[prod.ID] = prod.ID // Placeholder since ID is deterministic
-		}
-		
-		// Mapping for relations
+		// Map CVE UID to UUID for references/weaknesses
 		cveMap := make(map[string]string)
 		for _, c := range cves { cveMap[c.SourceUID] = c.ID }
-		
-		// For relations, we need to generate the same ProductID
-		for i := range rel {
-			rel[i].VendorName = util.ProductID(rel[i].VendorName, rel[i].ProductName) // Store target ID in field
-		}
 
-		// Import relations, references, weaknesses...
-		// Note: relations need slight adjustment in vendor_product.go to support deterministic ID
-		importer.ImportVendorsAndProductsFromv2(db, nil, nil, rel, cveMap, nil)
+		// Standardized Importer Call - No Map needed for relations anymore
+		importer.ImportVendorsAndProductsFromv2(db, v, p, rel, nil, nil)
 		importer.ImportReferences(db, ref, cveMap)
 		importer.ImportWeaknesses(db, w, cveMap)
 
