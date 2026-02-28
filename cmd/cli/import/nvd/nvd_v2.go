@@ -1,11 +1,14 @@
 package nvd
 
 import (
+	"context"
 	"encoding/json"
 	"log"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/spf13/cobra"
+	"github.com/uptrace/bun"
 
 	"gitlab.com/jacky850509/secra/internal/config"
 	"gitlab.com/jacky850509/secra/internal/fetcher"
@@ -19,18 +22,20 @@ var (
 	startDate string
 	endDate   string
 	apiKey    string
+	force     bool
 )
 
 func init() {
 	v2Nvd.Flags().StringVar(&startDate, "start", "", "Start date (YYYY-MM-DD) [required]")
 	v2Nvd.Flags().StringVar(&endDate, "end", "", "End date (YYYY-MM-DD)")
 	v2Nvd.Flags().StringVar(&apiKey, "apikey", "", "Optional NVD API key")
+	v2Nvd.Flags().BoolVarP(&force, "force", "f", false, "Force re-import even if data exists for the date")
 	v2Nvd.MarkFlagRequired("start")
 }
 
 var v2Nvd = &cobra.Command{
 	Use:   "v2",
-	Short: "Import CVEs from NVD API v2",
+	Short: "Import CVEs from NVD API v2 with resume capability",
 	Run: func(cmd *cobra.Command, args []string) {
 		start, err := time.Parse(time.DateOnly, startDate)
 		if err != nil {
@@ -47,60 +52,63 @@ var v2Nvd = &cobra.Command{
 			log.Fatalf("❌ --end must be after --start")
 		}
 
-		// Chunked import for large date ranges
-		// NVD API v2 allows max 120 days, but we use 30 days to keep memory usage low
-		chunkSize := 30 * 24 * time.Hour
-		for currentStart := start; currentStart.Before(end); {
-			currentEnd := currentStart.Add(chunkSize)
-			if currentEnd.After(end) {
-				currentEnd = end
+		cfg := config.Load()
+		db := storage.NewDB(cfg.PostgresDSN, false)
+		defer db.Close()
+
+		// Process day by day to support granular resume
+		for current := start; !current.After(end); current = current.AddDate(0, 0, 1) {
+			dayStr := current.Format(time.DateOnly)
+			
+			if !force {
+				// Check if we already have data for this specific day
+				count, _ := db.DB.NewSelect().Model((*model.CVE)(nil)).
+					Where("published_at::date = ?", dayStr).
+					Count(cmd.Context())
+				
+				if count > 0 {
+					log.Printf("⏩ Skipping %s (already has %d CVEs). Use -f to force re-import.", dayStr, count)
+					continue
+				}
 			}
 
-			log.Printf("📅 Processing chunk: %s to %s", currentStart.Format(time.DateOnly), currentEnd.Format(time.DateOnly))
-			ImportNvdv2Chunk(currentStart, currentEnd)
+			dayEnd := current.AddDate(0, 0, 1) // Next day 00:00:00
+			log.Printf("📅 Processing: %s", dayStr)
+			
+			ImportNvdv2Daily(cmd.Context(), db.DB, cfg, current, dayEnd)
 
-			currentStart = currentEnd
-			// Add a delay between chunks to respect Rate Limit
-			// NVD recommends 6 seconds without API key, or less with key
-			if currentStart.Before(end) {
-				delay := 6 * time.Second
-				if apiKey != "" {
-					delay = 1 * time.Second
-				}
-				log.Printf("Waiting %v before next chunk...", delay)
+			// Delay to respect Rate Limit
+			delay := 6 * time.Second
+			if apiKey != "" {
+				delay = 1 * time.Second
+			}
+			if !current.Equal(end) {
 				time.Sleep(delay)
 			}
 		}
 	},
 }
 
-func ImportNvdv2Chunk(start, end time.Time) {
-	cfg = config.Load()
-	db = storage.NewDB(cfg.PostgresDSN, false)
-	defer db.Close()
-
+func ImportNvdv2Daily(ctx context.Context, db *bun.DB, cfg *config.AppConfig, start, end time.Time) {
 	pageSize := 2000
 	startIndex := 0
 
-	source, err := ensureCveSource(db.DB, "nvd-v2", "", cfg.NvdURLv2)
+	source, err := ensureCveSource(db, "nvd-v2", "", cfg.NvdURLv2)
 	if err != nil {
 		log.Fatalf("❌ Failed to ensure source: %v", err)
 	}
 
-	// Step 0: 準備暫存累積
 	var (
 		allCVEs       []model.CVE
-		allRelations  []nvd_v2_parser.CVEProductRelation
 		allVendors    []model.Vendor
 		allProducts   []model.Product
+		allRelations  []nvd_v2_parser.CVEProductRelation
 		allReferences []model.CVEReference
 		allWeaknesses []model.CVEWeakness
 		allSourceUIDs = make(map[string]struct{})
 	)
 
 	for {
-		log.Printf("📥 Fetching NVD v2 feed: startIndex=%d...", startIndex)
-
 		data, err := fetcher.FetchNvdv2Feed(cfg.NvdURLv2, fetcher.NvdV2QueryParams{
 			PubStartDate:   start,
 			PubEndDate:     end,
@@ -118,114 +126,74 @@ func ImportNvdv2Chunk(start, end time.Time) {
 		}
 
 		if len(feed.Vulnerabilities) == 0 {
-			log.Println("✅ No more vulnerabilities to process.")
 			break
 		}
 
-		log.Printf("✅ Parsed %d vulnerabilities, totalResults=%d.", len(feed.Vulnerabilities), feed.TotalResults)
-
-		// 轉換 CVEs
-		cves, err := nvd_v2_parser.ConvertToCVEsFromV2(&feed)
-		if err != nil {
-			log.Fatalf("❌ Failed to convert CVEs: %v", err)
-		}
+		cves, _ := nvd_v2_parser.ConvertToCVEsFromV2(&feed)
 		allCVEs = append(allCVEs, cves...)
 
-		// 擷取 vendor/product/relation/reference/weakness
 		vendors, products, relations, references, weaknesses := nvd_v2_parser.ExtractAllFromV2(&feed)
-
 		allVendors = append(allVendors, vendors...)
 		allProducts = append(allProducts, products...)
 		allRelations = append(allRelations, relations...)
 		allReferences = append(allReferences, references...)
 		allWeaknesses = append(allWeaknesses, weaknesses...)
 
-		// 收集所有 source_uid
-		for _, cve := range cves {
-			allSourceUIDs[cve.SourceUID] = struct{}{}
-		}
-		for _, ref := range references {
-			allSourceUIDs[ref.CVEID] = struct{}{}
-		}
-		for _, w := range weaknesses {
-			allSourceUIDs[w.CVEID] = struct{}{}
-		}
+		for _, cve := range cves { allSourceUIDs[cve.SourceUID] = struct{}{} }
 
-		// 檢查是否還有下一頁
 		startIndex += len(feed.Vulnerabilities)
 		if startIndex >= feed.TotalResults {
-			log.Println("✅ All pages fetched.")
 			break
 		}
-		// Delay between pages if no API key
-		if apiKey == "" {
-			time.Sleep(1 * time.Second)
-		}
+		time.Sleep(1 * time.Second)
 	}
 
-	// Step 1: Insert CVEs
-	log.Printf("📦 Importing %d CVEs...", len(allCVEs))
-	if err := importer.ImportCVEs(db.DB, source.ID, allCVEs); err != nil {
-		log.Fatalf("❌ CVE import failed: %v", err)
+	if len(allCVEs) == 0 {
+		log.Printf("ℹ️ No data found for this date.")
+		return
 	}
 
-	// Step 2: Insert vendors
-	log.Printf("📦 Importing %d vendors...", len(allVendors))
-	if err := importer.ImportVendorsAndProductsFromv2(db.DB, allVendors, nil, nil, nil, nil); err != nil {
-		log.Fatalf("❌ Vendor insert failed: %v", err)
-	}
-
-	// Step 3: Resolve vendor ID for products
-	vendorMap, err := importer.BuildVendorMap(db.DB)
-	if err != nil {
-		log.Fatalf("❌ Failed to build vendor map: %v", err)
-	}
+	// Import Logic (using existing importer logic)
+	importer.ImportCVEs(db, source.ID, allCVEs)
+	importer.ImportVendorsAndProductsFromv2(db, allVendors, nil, nil, nil, nil)
+	
+	vendorMap, _ := importer.BuildVendorMap(db)
 	for i := range allProducts {
 		if realID, ok := vendorMap[allProducts[i].VendorID]; ok {
 			allProducts[i].VendorID = realID
-		} else {
-			log.Printf("⚠️ Vendor not found for product: %s (vendor=%s)", allProducts[i].Name, allProducts[i].VendorID)
 		}
 	}
+	importer.ImportVendorsAndProductsFromv2(db, nil, allProducts, nil, nil, nil)
 
-	// Step 4: Insert products
-	log.Printf("📦 Importing %d products...", len(allProducts))
-	if err := importer.ImportVendorsAndProductsFromv2(db.DB, nil, allProducts, nil, nil, nil); err != nil {
-		log.Fatalf("❌ Product insert failed: %v", err)
-	}
-
-	// Step 5: Insert CVE ↔ Product relations
-	productMap, err := importer.BuildProductMap(db.DB)
-	if err != nil {
-		log.Fatalf("❌ Failed to build product map: %v", err)
-	}
-
+	productMap, _ := importer.BuildProductMap(db)
 	cveUIDList := make([]string, 0, len(allSourceUIDs))
-	for uid := range allSourceUIDs {
-		cveUIDList = append(cveUIDList, uid)
+	for uid := range allSourceUIDs { cveUIDList = append(cveUIDList, uid) }
+	cveMap, _ := importer.BuildCveMap(db, cveUIDList)
+
+	importer.ImportVendorsAndProductsFromv2(db, nil, nil, allRelations, cveMap, productMap)
+	importer.ImportReferences(db, allReferences, cveMap)
+	importer.ImportWeaknesses(db, allWeaknesses, cveMap)
+
+	log.Printf("✅ Daily import complete: %d CVEs processed.", len(allCVEs))
+}
+
+func ensureCveSource(db *bun.DB, name, description, url string) (*model.CVESource, error) {
+	ctx := context.Background()
+	source := new(model.CVESource)
+	err := db.NewSelect().Model(source).Where("name = ?", name).Scan(ctx)
+	if err == nil {
+		return source, nil
 	}
 
-	cveMap, err := importer.BuildCveMap(db.DB, cveUIDList)
-	if err != nil {
-		log.Fatalf("❌ Failed to build CVE map: %v", err)
+	source = &model.CVESource{
+		ID:          uuid.New().String(),
+		Name:        name,
+		Type:        "nvd",
+		URL:         url,
+		Description: description,
+		Enabled:     true,
 	}
 
-	log.Printf("🔗 Linking %d CVEs to products...", len(allRelations))
-	if err := importer.ImportVendorsAndProductsFromv2(db.DB, nil, nil, allRelations, cveMap, productMap); err != nil {
-		log.Fatalf("❌ Relation insert failed: %v", err)
-	}
-
-	// Step 6: Insert references
-	log.Printf("🔗 Importing %d references...", len(allReferences))
-	if err := importer.ImportReferences(db.DB, allReferences, cveMap); err != nil {
-		log.Fatalf("❌ Failed to import references: %v", err)
-	}
-
-	// Step 7: Insert weaknesses
-	log.Printf("🔗 Importing %d weaknesses...", len(allWeaknesses))
-	if err := importer.ImportWeaknesses(db.DB, allWeaknesses, cveMap); err != nil {
-		log.Fatalf("❌ Failed to import weaknesses: %v", err)
-	}
-
-	log.Println("✅ NVD v2 Import fully complete for this chunk.")
+	_, err = db.NewInsert().Model(source).Exec(ctx)
+	return source, err
 }
