@@ -1,43 +1,44 @@
 {{ define "content" }}
 <div class="card">
     <h2>My Subscription Dashboard</h2>
-    <p>Categorized intelligence based on your subscriptions.</p>
+    <p style="color: var(--text-secondary);">Personalized intelligence feed based on your active subscriptions.</p>
 </div>
 
 <div class="grid">
     <div class="card">
-        <h3>Subscribed Vendors</h3>
-        <p>Total: 0</p>
+        <h3>Active Subscriptions</h3>
+        {{ if .EnrichedSubs }}
+            <table>
+                <thead>
+                    <tr>
+                        <th>Target Type</th>
+                        <th>Name</th>
+                        <th>Alert Threshold</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {{ range .EnrichedSubs }}
+                    <tr>
+                        <td><span class="badge low">{{ .TargetType }}</span></td>
+                        <td><strong>{{ .TargetName }}</strong></td>
+                        <td>{{ .SeverityThreshold }}</td>
+                        <td>
+                            <button class="btn" style="font-size: 0.7rem; color: var(--danger-color); border-color: var(--danger-color);">Unsubscribe</button>
+                        </td>
+                    </tr>
+                    {{ end }}
+                </tbody>
+            </table>
+        {{ else }}
+            <div style="padding: 40px; text-align: center; color: var(--text-secondary);">
+                <p>You haven't subscribed to any vendors or products yet.</p>
+                <div style="margin-top: 20px;">
+                    <a href="/vendors" class="btn" style="margin-right: 10px;">Browse Vendors</a>
+                    <a href="/products" class="btn">Browse Products</a>
+                </div>
+            </div>
+        {{ end }}
     </div>
-    <div class="card">
-        <h3>Subscribed Products</h3>
-        <p>Total: {{ len .Subscriptions }}</p>
-    </div>
-</div>
-
-<div class="card" style="margin-top: 20px;">
-    <h3>Active Subscriptions</h3>
-    {{ if .Subscriptions }}
-        <table>
-            <thead>
-                <tr>
-                    <th>Type</th>
-                    <th>Target ID</th>
-                    <th>Threshold</th>
-                </tr>
-            </thead>
-            <tbody>
-                {{ range .Subscriptions }}
-                <tr>
-                    <td>{{ .UserID }}</td> <!-- For now we don't have target info joined -->
-                    <td>{{ .ID }}</td>
-                    <td>{{ .SeverityThreshold }}</td>
-                </tr>
-                {{ end }}
-            </tbody>
-        </table>
-    {{ else }}
-        <p>You haven't subscribed to any products or vendors yet.</p>
-    {{ end }}
 </div>
 {{ end }}

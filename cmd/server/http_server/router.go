@@ -22,7 +22,6 @@ type Server struct {
 	db  *bun.DB
 	cfg *config.AppConfig
 
-	// Services
 	cveSvc          service.CveServicer
 	userSvc         service.UserServicer
 	subscriptionSvc service.SubscriptionServicer
@@ -67,7 +66,7 @@ func (s *Server) render(w http.ResponseWriter, r *http.Request, tmpl string, dat
 	t, err := template.New("layout.html").Funcs(template.FuncMap{
 		"derefString": derefString,
 		"formatDate": func(t time.Time) string {
-			return t.UTC().Format("2006-01-02T15:04:05Z") // ISO 8601 UTC
+			return t.UTC().Format("2006-01-02T15:04:05Z")
 		},
 	}).ParseFiles(
 		filepath.Join("web", "templates", "layout.html"),
@@ -100,7 +99,6 @@ func (s *Server) setupRoutes() {
 	s.mux.HandleFunc("/cves/", s.handleCVEDetail)
 	s.mux.HandleFunc("/cves/new", s.requireAuth(s.handleCVENew))
 
-	// Vendor & Product Routes
 	s.mux.HandleFunc("/vendors", s.handleVendorList)
 	s.mux.HandleFunc("/products", s.handleProductList)
 
@@ -251,7 +249,16 @@ func (s *Server) handleProfile(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleCVEList(w http.ResponseWriter, r *http.Request) {
 	cves, _ := s.cveSvc.List(r.Context(), 50, 0)
-	s.render(w, r, "cve/list.html", map[string]interface{}{"CVEs": cves})
+	var sources []model.CVESource
+	s.db.NewSelect().Model(&sources).Scan(r.Context())
+	sourceMap := make(map[string]string)
+	for _, src := range sources {
+		sourceMap[src.ID] = src.Name
+	}
+	s.render(w, r, "cve/list.html", map[string]interface{}{
+		"CVEs":      cves,
+		"SourceMap": sourceMap,
+	})
 }
 
 func (s *Server) handleCVEDetail(w http.ResponseWriter, r *http.Request) {
@@ -261,15 +268,23 @@ func (s *Server) handleCVEDetail(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	var products []model.Product
-	s.db.NewSelect().Model(&products).
-		Join("JOIN cve_products ON cve_products.product_id = product.id").
-		Where("cve_products.cve_id = ?", id).
-		Scan(r.Context())
-
+	source := new(model.CVESource)
+	s.db.NewSelect().Model(source).Where("id = ?", cve.SourceID).Scan(r.Context())
+	type productWithVendor struct {
+		model.Product
+		VendorName string
+	}
+	var products []productWithVendor
+	s.db.NewSelect().Model((*model.Product)(nil)).
+		ColumnExpr("product.*, v.name AS vendor_name").
+		Join("JOIN vendors v ON v.id = product.vendor_id").
+		Where("cp.cve_id = ?", id).
+		Join("JOIN cve_products cp ON cp.product_id = product.id").
+		Scan(r.Context(), &products)
 	s.render(w, r, "cve/detail.html", map[string]interface{}{
-		"CVE": cve,
-		"Products": products,
+		"CVE":        cve,
+		"SourceName": source.Name,
+		"Products":   products,
 	})
 }
 
@@ -283,52 +298,66 @@ func (s *Server) handleCVENew(w http.ResponseWriter, r *http.Request) {
 	description := r.FormValue("description")
 	severity := r.FormValue("severity")
 	cvssScore, _ := strconv.ParseFloat(r.FormValue("cvss_score"), 64)
-
 	source := new(model.CVESource)
 	err := s.db.NewSelect().Model(source).Where("name = ?", "Manual").Scan(r.Context())
 	if err != nil {
-		source = &model.CVESource{
-			ID:      uuid.New().String(),
-			Name:    "Manual",
-			Type:    "manual",
-			URL:     "local",
-			Enabled: true,
-		}
+		source = &model.CVESource{ID: uuid.New().String(), Name: "Manual", Type: "manual", URL: "local", Enabled: true}
 		s.db.NewInsert().Model(source).Exec(r.Context())
 	}
-
 	cve := &model.CVE{
-		ID:          uuid.New().String(),
-		SourceID:    source.ID,
-		SourceUID:   sourceUID,
-		Title:       title,
-		Description: description,
-		Severity:    &severity,
-		CVSSScore:   &cvssScore,
-		Status:      "active",
-		PublishedAt: time.Now().UTC(),
-		UpdatedAt:   time.Now().UTC(),
+		ID: uuid.New().String(), SourceID: source.ID, SourceUID: sourceUID, Title: title,
+		Description: description, Severity: &severity, CVSSScore: &cvssScore,
+		Status: "active", PublishedAt: time.Now().UTC(), UpdatedAt: time.Now().UTC(),
 	}
 	s.db.NewInsert().Model(cve).Exec(r.Context())
-	http.Redirect(w, r, "/cves/" + cve.ID, http.StatusSeeOther)
+	http.Redirect(w, r, "/cves/"+cve.ID, http.StatusSeeOther)
 }
 
 func (s *Server) handleVendorList(w http.ResponseWriter, r *http.Request) {
 	var vendors []model.Vendor
-	s.db.NewSelect().Model(&vendors).Limit(100).Scan(r.Context())
+	s.db.NewSelect().Model(&vendors).Order("name ASC").Limit(100).Scan(r.Context())
 	s.render(w, r, "vendor/list.html", map[string]interface{}{"Vendors": vendors})
 }
 
 func (s *Server) handleProductList(w http.ResponseWriter, r *http.Request) {
-	var products []model.Product
-	s.db.NewSelect().Model(&products).Limit(100).Scan(r.Context())
+	type productWithVendor struct {
+		model.Product
+		VendorName string
+	}
+	var products []productWithVendor
+	s.db.NewSelect().Model((*model.Product)(nil)).
+		ColumnExpr("product.*, v.name AS vendor_name").
+		Join("JOIN vendors v ON v.id = product.vendor_id").
+		Order("product.name ASC").Limit(100).
+		Scan(r.Context(), &products)
 	s.render(w, r, "product/list.html", map[string]interface{}{"Products": products})
 }
 
 func (s *Server) handleMyDashboard(w http.ResponseWriter, r *http.Request) {
 	user, _ := s.getUserFromSession(r)
-	subs, _ := s.subscriptionSvc.ListSubscriptions(r.Context(), user.ID.String())
-	s.render(w, r, "dashboard/my.html", map[string]interface{}{"Subscriptions": subs})
+	type enrichedSub struct {
+		ID                string
+		TargetType        string
+		TargetName        string
+		SeverityThreshold string
+	}
+	var subs []enrichedSub
+	var vendorSubs []enrichedSub
+	s.db.NewSelect().Table("subscriptions").
+		ColumnExpr("subscriptions.id, 'vendor' as target_type, v.name as target_name, subscriptions.severity_threshold").
+		Join("JOIN vendors v ON v.id::text = (subscriptions.targets->0->>'target_id')").
+		Where("subscriptions.user_id = ?", user.ID).
+		Scan(r.Context(), &vendorSubs)
+	var productSubs []enrichedSub
+	s.db.NewSelect().Table("subscriptions").
+		ColumnExpr("subscriptions.id, 'product' as target_type, p.name as target_name, subscriptions.severity_threshold").
+		Join("JOIN products p ON p.id::text = (subscriptions.targets->0->>'target_id')").
+		Where("subscriptions.user_id = ?", user.ID).
+		Scan(r.Context(), &productSubs)
+	subs = append(vendorSubs, productSubs...)
+	s.render(w, r, "dashboard/my.html", map[string]interface{}{
+		"EnrichedSubs": subs,
+	})
 }
 
 func (s *Server) handleSubscribe(w http.ResponseWriter, r *http.Request) {
@@ -346,6 +375,6 @@ func (s *Server) handleSubscribe(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleAdminUsers(w http.ResponseWriter, r *http.Request) {
 	var users []model.User
-	s.db.NewSelect().Model(&users).Scan(r.Context())
+	s.db.NewSelect().Model(&users).Order("username ASC").Scan(r.Context())
 	s.render(w, r, "user/list.html", map[string]interface{}{"Users": users})
 }

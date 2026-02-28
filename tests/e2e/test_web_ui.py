@@ -92,7 +92,8 @@ def test_cve_creation(page: Page):
 
     # Should redirect to detail page
     expect(page.locator(f"h2:has-text('{cve_id}')")).to_be_visible()
-    expect(page.locator("text=CRITICAL (Score: 9.8)")).to_be_visible()
+    expect(page.get_by_text("CRITICAL", exact=True)).to_be_visible()
+    expect(page.get_by_text("9.8", exact=True)).to_be_visible()
 
 def test_product_subscription(page: Page):
     # Login
