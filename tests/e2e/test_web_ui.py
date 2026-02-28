@@ -57,6 +57,15 @@ def test_admin_access(page: Page):
     expect(page.locator("text=User Administration")).to_be_visible()
     expect(page.get_by_role("cell", name="admin").first).to_be_visible()
 
+def test_vendor_and_product_lists(page: Page):
+    # Check Vendors
+    page.goto(f"{BASE_URL}/vendors")
+    expect(page.locator("text=Tracked Vendors")).to_be_visible()
+    
+    # Check Products
+    page.goto(f"{BASE_URL}/products")
+    expect(page.locator("text=Monitored Products")).to_be_visible()
+
 def test_protected_routes_redirect(page: Page):
     # Try to access dashboard without login
     page.goto(f"{BASE_URL}/my/dashboard")

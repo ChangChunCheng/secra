@@ -47,7 +47,6 @@ func NewServer(db *bun.DB) *Server {
 	return s
 }
 
-// Custom template function to dereference pointers
 func derefString(s *string) string {
 	if s == nil {
 		return "UNKNOWN"
@@ -59,7 +58,6 @@ func (s *Server) render(w http.ResponseWriter, r *http.Request, tmpl string, dat
 	if data == nil {
 		data = make(map[string]interface{})
 	}
-	// Inject current user into all templates
 	if user, ok := s.getUserFromSession(r); ok {
 		data["User"] = user
 	} else {
@@ -69,7 +67,7 @@ func (s *Server) render(w http.ResponseWriter, r *http.Request, tmpl string, dat
 	t, err := template.New("layout.html").Funcs(template.FuncMap{
 		"derefString": derefString,
 		"formatDate": func(t time.Time) string {
-			return t.Format("2006-01-02")
+			return t.UTC().Format("2006-01-02T15:04:05Z") // ISO 8601 UTC
 		},
 	}).ParseFiles(
 		filepath.Join("web", "templates", "layout.html"),
@@ -98,16 +96,17 @@ func (s *Server) setupRoutes() {
 	s.mux.HandleFunc("/logout", s.handleLogout)
 	s.mux.HandleFunc("/profile", s.requireAuth(s.handleProfile))
 	
-	// CVE Routes
 	s.mux.HandleFunc("/cves", s.handleCVEList)
-	s.mux.HandleFunc("/cves/", s.handleCVEDetail) // Handles /cves/:id
+	s.mux.HandleFunc("/cves/", s.handleCVEDetail)
 	s.mux.HandleFunc("/cves/new", s.requireAuth(s.handleCVENew))
 
-	// Subscription & User Dashboard
+	// Vendor & Product Routes
+	s.mux.HandleFunc("/vendors", s.handleVendorList)
+	s.mux.HandleFunc("/products", s.handleProductList)
+
 	s.mux.HandleFunc("/my/dashboard", s.requireAuth(s.handleMyDashboard))
 	s.mux.HandleFunc("/subscribe", s.requireAuth(s.handleSubscribe))
 
-	// Admin
 	s.mux.HandleFunc("/admin/users", s.requireAdmin(s.handleAdminUsers))
 }
 
@@ -115,18 +114,15 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	s.mux.ServeHTTP(w, r)
 }
 
-// Auth Helpers
 func (s *Server) getUserFromSession(r *http.Request) (*model.User, bool) {
 	cookie, err := r.Cookie("session_token")
 	if err != nil {
 		return nil, false
 	}
-
 	user, err := s.userSvc.GetProfile(r.Context(), cookie.Value)
 	if err != nil {
 		return nil, false
 	}
-
 	return user, true
 }
 
@@ -151,22 +147,18 @@ func (s *Server) requireAdmin(next http.HandlerFunc) http.HandlerFunc {
 	}
 }
 
-// Handlers
 func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodGet {
 		s.render(w, r, "auth/login.html", nil)
 		return
 	}
-
 	username := r.FormValue("username")
 	password := r.FormValue("password")
-
 	token, _, err := s.userSvc.Login(r.Context(), username, password)
 	if err != nil {
 		s.render(w, r, "auth/login.html", map[string]interface{}{"Error": "Invalid credentials"})
 		return
 	}
-
 	http.SetCookie(w, &http.Cookie{
 		Name:     "session_token",
 		Value:    token,
@@ -182,17 +174,14 @@ func (s *Server) handleRegister(w http.ResponseWriter, r *http.Request) {
 		s.render(w, r, "auth/register.html", nil)
 		return
 	}
-
 	username := r.FormValue("username")
 	email := r.FormValue("email")
 	password := r.FormValue("password")
-
 	_, err := s.userSvc.Register(r.Context(), username, email, password, password)
 	if err != nil {
 		s.render(w, r, "auth/register.html", map[string]interface{}{"Error": err.Error()})
 		return
 	}
-
 	http.Redirect(w, r, "/login", http.StatusSeeOther)
 }
 
@@ -212,20 +201,17 @@ func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-
 	cves, err := s.cveSvc.List(r.Context(), 10, 0)
 	if err != nil {
 		http.Error(w, "Database error", http.StatusInternalServerError)
 		return
 	}
-
 	var labels []string
 	var data []int
 	now := time.Now()
 	for i := 6; i >= 0; i-- {
 		day := now.AddDate(0, 0, -i)
 		labels = append(labels, day.Format("01-02"))
-		
 		count, _ := s.db.NewSelect().Model((*model.CVE)(nil)).
 			Where("published_at >= ? AND published_at < ?", 
 				time.Date(day.Year(), day.Month(), day.Day(), 0, 0, 0, 0, time.UTC),
@@ -233,7 +219,6 @@ func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
 			Count(r.Context())
 		data = append(data, int(count))
 	}
-
 	totalCVEs, _ := s.db.NewSelect().Model((*model.CVE)(nil)).Count(r.Context())
 	totalVendors, _ := s.db.NewSelect().Model((*model.Vendor)(nil)).Count(r.Context())
 	totalProducts, _ := s.db.NewSelect().Model((*model.Product)(nil)).Count(r.Context())
@@ -253,17 +238,14 @@ func (s *Server) handleProfile(w http.ResponseWriter, r *http.Request) {
 		s.render(w, r, "user/profile.html", nil)
 		return
 	}
-
 	cookie, _ := r.Cookie("session_token")
 	email := r.FormValue("email")
 	password := r.FormValue("password")
-
 	_, err := s.userSvc.UpdateProfile(r.Context(), cookie.Value, email, password, password)
 	if err != nil {
 		s.render(w, r, "user/profile.html", map[string]interface{}{"Error": err.Error()})
 		return
 	}
-
 	http.Redirect(w, r, "/profile", http.StatusSeeOther)
 }
 
@@ -279,7 +261,6 @@ func (s *Server) handleCVEDetail(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	
 	var products []model.Product
 	s.db.NewSelect().Model(&products).
 		Join("JOIN cve_products ON cve_products.product_id = product.id").
@@ -297,18 +278,15 @@ func (s *Server) handleCVENew(w http.ResponseWriter, r *http.Request) {
 		s.render(w, r, "cve/new.html", nil)
 		return
 	}
-	
 	sourceUID := r.FormValue("source_uid")
 	title := r.FormValue("title")
 	description := r.FormValue("description")
 	severity := r.FormValue("severity")
 	cvssScore, _ := strconv.ParseFloat(r.FormValue("cvss_score"), 64)
 
-	// Ensure we have a valid UUID for SourceID
 	source := new(model.CVESource)
 	err := s.db.NewSelect().Model(source).Where("name = ?", "Manual").Scan(r.Context())
 	if err != nil {
-		// Create it if not exists
 		source = &model.CVESource{
 			ID:      uuid.New().String(),
 			Name:    "Manual",
@@ -316,9 +294,7 @@ func (s *Server) handleCVENew(w http.ResponseWriter, r *http.Request) {
 			URL:     "local",
 			Enabled: true,
 		}
-		if _, err := s.db.NewInsert().Model(source).Exec(r.Context()); err != nil {
-			log.Printf("ERROR: Failed to create manual source: %v", err)
-		}
+		s.db.NewInsert().Model(source).Exec(r.Context())
 	}
 
 	cve := &model.CVE{
@@ -330,17 +306,23 @@ func (s *Server) handleCVENew(w http.ResponseWriter, r *http.Request) {
 		Severity:    &severity,
 		CVSSScore:   &cvssScore,
 		Status:      "active",
-		PublishedAt: time.Now(),
-		UpdatedAt:   time.Now(),
+		PublishedAt: time.Now().UTC(),
+		UpdatedAt:   time.Now().UTC(),
 	}
-	
-	if _, err := s.db.NewInsert().Model(cve).Exec(r.Context()); err != nil {
-		log.Printf("ERROR: Failed to create CVE: %v", err)
-		http.Error(w, "Failed to create CVE: " + err.Error(), http.StatusInternalServerError)
-		return
-	}
-
+	s.db.NewInsert().Model(cve).Exec(r.Context())
 	http.Redirect(w, r, "/cves/" + cve.ID, http.StatusSeeOther)
+}
+
+func (s *Server) handleVendorList(w http.ResponseWriter, r *http.Request) {
+	var vendors []model.Vendor
+	s.db.NewSelect().Model(&vendors).Limit(100).Scan(r.Context())
+	s.render(w, r, "vendor/list.html", map[string]interface{}{"Vendors": vendors})
+}
+
+func (s *Server) handleProductList(w http.ResponseWriter, r *http.Request) {
+	var products []model.Product
+	s.db.NewSelect().Model(&products).Limit(100).Scan(r.Context())
+	s.render(w, r, "product/list.html", map[string]interface{}{"Products": products})
 }
 
 func (s *Server) handleMyDashboard(w http.ResponseWriter, r *http.Request) {
@@ -354,22 +336,11 @@ func (s *Server) handleSubscribe(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-
 	user, _ := s.getUserFromSession(r)
 	targetType := r.FormValue("target_type")
 	targetID := r.FormValue("target_id")
-
-	targets := []service.SubscriptionTarget{
-		{TargetType: targetType, TargetID: targetID},
-	}
-	
-	_, err := s.subscriptionSvc.CreateSubscription(r.Context(), user.ID.String(), targets, "MEDIUM")
-	if err != nil {
-		log.Printf("ERROR: Failed to subscribe: %v", err)
-		http.Error(w, "Failed to subscribe: " + err.Error(), http.StatusInternalServerError)
-		return
-	}
-
+	targets := []service.SubscriptionTarget{{TargetType: targetType, TargetID: targetID}}
+	s.subscriptionSvc.CreateSubscription(r.Context(), user.ID.String(), targets, "MEDIUM")
 	http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
 }
 

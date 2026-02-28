@@ -1,0 +1,28 @@
+{{ define "content" }}
+<div class="card">
+    <h2>Tracked Vendors</h2>
+    <p style="color: var(--text-secondary); margin-bottom: 20px;">Manage and subscribe to vendors to track their vulnerability intelligence.</p>
+    <table>
+        <thead>
+            <tr>
+                <th>Vendor Name</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{ range .Vendors }}
+            <tr>
+                <td><strong>{{ .Name }}</strong></td>
+                <td>
+                    <form action="/subscribe" method="POST" style="display:inline;">
+                        <input type="hidden" name="target_type" value="vendor">
+                        <input type="hidden" name="target_id" value="{{ .ID }}">
+                        <button type="submit" class="btn" style="font-size: 0.7rem; padding: 2px 8px;">Subscribe</button>
+                    </form>
+                </td>
+            </tr>
+            {{ end }}
+        </tbody>
+    </table>
+</div>
+{{ end }}

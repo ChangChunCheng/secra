@@ -1,23 +1,28 @@
 {{ define "content" }}
 <div class="card">
     <h2>User Administration</h2>
+    <p style="color: var(--text-secondary); margin-bottom: 20px;">Manage platform users and their access levels.</p>
     <table>
         <thead>
             <tr>
-                <th>ID</th>
                 <th>Username</th>
                 <th>Email</th>
                 <th>Role</th>
+                <th>Status</th>
                 <th>Actions</th>
             </tr>
         </thead>
         <tbody>
             {{ range .Users }}
             <tr>
-                <td>{{ .ID }}</td>
-                <td>{{ .Username }}</td>
+                <td><strong>{{ .Username }}</strong></td>
                 <td>{{ .Email }}</td>
-                <td>{{ .Role }}</td>
+                <td>
+                    <span class="badge {{ if eq .Role "admin" }}high{{ else }}medium{{ end }}">
+                        {{ .Role }}
+                    </span>
+                </td>
+                <td>{{ .Status }}</td>
                 <td>
                     <button class="btn" style="font-size: 0.7rem; color: var(--danger-color); border-color: var(--danger-color);">Deactivate</button>
                 </td>

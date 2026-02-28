@@ -1,0 +1,30 @@
+{{ define "content" }}
+<div class="card">
+    <h2>Monitored Products</h2>
+    <p style="color: var(--text-secondary); margin-bottom: 20px;">Follow specific products to receive targeted security updates.</p>
+    <table>
+        <thead>
+            <tr>
+                <th>Product Name</th>
+                <th>Vendor ID</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{ range .Products }}
+            <tr>
+                <td><strong>{{ .Name }}</strong></td>
+                <td><code style="color: var(--text-secondary);">{{ .VendorID }}</code></td>
+                <td>
+                    <form action="/subscribe" method="POST" style="display:inline;">
+                        <input type="hidden" name="target_type" value="product">
+                        <input type="hidden" name="target_id" value="{{ .ID }}">
+                        <button type="submit" class="btn" style="font-size: 0.7rem; padding: 2px 8px;">Subscribe</button>
+                    </form>
+                </td>
+            </tr>
+            {{ end }}
+        </tbody>
+    </table>
+</div>
+{{ end }}
