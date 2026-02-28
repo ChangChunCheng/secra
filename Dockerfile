@@ -7,7 +7,7 @@ RUN cd api && buf generate --template buf.gen.yaml
 # Stage 1: Build the Go application
 FROM golang:1.25-alpine AS builder
 
-# Add Build Arguments
+# Arguments injected from host (Makefile / Docker Compose)
 ARG VERSION=dev
 ARG BUILD_DATE=unknown
 ARG GIT_COMMIT=none
@@ -19,7 +19,7 @@ RUN go mod download
 COPY . .
 COPY --from=generate /app/api/gen ./api/gen
 
-# Inject LDFLAGS
+# Compile with host-provided metadata
 RUN export GO_OS=$(go env GOOS) && \
     export GO_ARCH=$(go env GOARCH) && \
     export PKG="gitlab.com/jacky850509/secra/internal/config" && \
@@ -37,6 +37,6 @@ COPY --from=builder /app/secra /usr/local/bin/secra
 COPY --from=builder /app/web ./web
 COPY --from=builder /app/migrations ./migrations
 
-# Default to HTTP server (can be overridden in docker-compose)
+# Default to HTTP server
 EXPOSE 8081
 CMD ["./secra-http"]

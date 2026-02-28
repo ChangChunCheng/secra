@@ -4,23 +4,61 @@
 
 SECRA is a high-performance, containerized CVE vulnerability platform featuring smart NVD synchronization, a Cyberpunk-styled Web UI, and columnar backup/restore capabilities.
 
-## Key Features
-- **Deterministic ID (UUID v5)**: Ensuring cross-environment data consistency.
-- **Smart NVD Sync**: Greedy interval merging to minimize API calls and respect rate limits.
-- **Cyberpunk Web UI**: Dark-themed, high-density dashboard with real-time analytics.
-- **Columnar Backup**: Native Parquet-based backup and restore logic.
-- **Distroless Runtime**: Secure, minimal Docker images.
+---
 
-## Quick Start
+## 🛠 Deployment Guide
+
+### Prerequisites
+- **Git**: Used for version tracking and build labeling.
+- **Docker & Docker Compose**: For containerized execution.
+- **Make**: To manage the unified build and deployment workflow.
+
+### 1. Environment Setup
+Copy the template and configure your environment variables:
 ```bash
-docker compose up -d
+cp template.env .env
+```
+Key variables in `.env`:
+- `NVD_API_KEY`: (Optional) Highly recommended to increase rate limits (from 6s per request to 1s).
+- `JWT_SECRET`: Used for user session authentication.
+- `POSTGRES_DSN`: Should match the settings in `docker-compose.yml`.
+
+### 2. Launch the System
+Use the Makefile to ensure Git metadata is correctly injected into the containers:
+```bash
+make docker-up
+```
+*Note: This command captures your host's Git tags, commit hash, and hostname to bake them into the `secra` binary.*
+
+### 3. Initialize Database
+Once the containers are running, apply the schema migrations:
+```bash
 docker compose exec web secra migrate up
-docker compose exec web secra import nvd v2 --start 2024-01-01
 ```
 
-## Management
-- **Backup**: `./backup.sh ./backups`
-- **Restore**: `./restore.sh ./backups/filename.tar.gz`
+### 4. Fetch Initial Data
+Pull vulnerability data from NVD (example for Jan 2024):
+```bash
+docker compose exec web secra import nvd v2 --start 2024-01-01 --end 2024-01-31
+```
 
-## License
+---
+
+## 📊 Management Commands
+
+### Operations
+| Command | Description |
+|---------|-------------|
+| `make docker-up` | Build and start all services with Git metadata |
+| `make docker-down` | Stop all services |
+| `./backup.sh <dir>` | Create a Parquet-based backup with auto-versioning |
+| `./restore.sh <file>` | Restore data from a backup (supports ID migration) |
+| `docker compose exec web secra version` | Check detailed build & version info |
+
+### Accessing the UI
+The Cyberpunk Dashboard is available at: **http://localhost:8081**
+
+---
+
+## 🛡 License
 Licensed under the **GNU Affero General Public License v3.0 (AGPL-3.0)**. See [LICENSE](LICENSE) for details.

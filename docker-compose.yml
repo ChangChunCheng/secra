@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   db:
     image: postgres:17-alpine
@@ -36,7 +34,6 @@ services:
     environment:
       - POSTGRES_DSN=postgres://postgres:postgres@db:5432/secra?sslmode=disable
       - GRPC_PORT=:50051
-
 
   web:
     build:

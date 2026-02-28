@@ -1,4 +1,4 @@
-# Secra Makefile
+# Secra Makefile指挥中心
 
 APP_NAME := secra
 VERSION := $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
@@ -8,7 +8,7 @@ BUILT_BY := $(shell hostname)
 GO_OS := $(shell go env GOOS)
 GO_ARCH := $(shell go env GOARCH)
 
-# Package path for variable injection
+# 注入路径
 PKG := gitlab.com/jacky850509/secra/internal/config
 
 LDFLAGS := -X $(PKG).Version=$(VERSION) \
@@ -19,15 +19,30 @@ LDFLAGS := -X $(PKG).Version=$(VERSION) \
            -X $(PKG).Arch=$(GO_ARCH) \
            -s -w
 
-.PHONY: all build clean test docker-up docker-down migrate-up migrate-status
+.PHONY: all build clean test docker-up docker-down migrate-up migrate-status version-env
 
 all: build
 
+# 1. 本地构建
 build:
-	@echo "Building Secra binaries..."
+	@echo "🛠️  Building Secra binaries locally ($(VERSION))..."
+	@mkdir -p bin
 	go build -ldflags="$(LDFLAGS)" -o bin/secra-grpc ./cmd/server/grpc.go
 	go build -ldflags="$(LDFLAGS)" -o bin/secra-http ./cmd/server/http.go
 	go build -ldflags="$(LDFLAGS)" -o bin/secra ./cmd/cli/secra.go
+
+# 2. Docker 构建与启动
+docker-up:
+	@echo "🐳 Launching Secra in Docker with version $(VERSION)..."
+	@# 动态传递构建参数，确保不依赖 .env 文件中的静态定义
+	APP_VERSION=$(VERSION) \
+	BUILD_DATE=$(BUILD_DATE) \
+	GIT_COMMIT=$(GIT_COMMIT) \
+	HOSTNAME=$(BUILT_BY) \
+	docker compose up -d --build
+
+docker-down:
+	docker compose down
 
 clean:
 	rm -rf bin/
@@ -35,23 +50,8 @@ clean:
 test:
 	go test -v ./...
 
-docker-up:
-	docker compose up -d --build
-
-docker-down:
-	docker compose down
-
 migrate-up:
 	go run cmd/cli/secra.go migrate up
 
 migrate-status:
 	go run cmd/cli/secra.go migrate status
-
-# For production Docker build, we pass these as build-args
-docker-build:
-	docker build \
-		--build-arg VERSION=$(VERSION) \
-		--build-arg BUILD_DATE=$(BUILD_DATE) \
-		--build-arg GIT_COMMIT=$(GIT_COMMIT) \
-		--build-arg BUILT_BY=$(BUILT_BY) \
-		-t $(APP_NAME):latest .
