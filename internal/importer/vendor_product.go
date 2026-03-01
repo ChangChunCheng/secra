@@ -24,11 +24,13 @@ func importVendorsProductsRelations[T any](db *bun.DB, vendors []model.Vendor, p
 	ctx := context.Background()
 
 	for _, v := range vendors {
-		db.NewInsert().Model(&v).On("CONFLICT (id) DO UPDATE SET name = EXCLUDED.name").Exec(ctx)
+		// Fix: Use name as conflict target for vendors
+		db.NewInsert().Model(&v).On("CONFLICT (name) DO UPDATE SET name = EXCLUDED.name").Exec(ctx)
 	}
 
 	for _, p := range products {
-		db.NewInsert().Model(&p).On("CONFLICT (id) DO UPDATE SET name = EXCLUDED.name").Exec(ctx)
+		// Fix: Use vendor_id and name as conflict target for products
+		db.NewInsert().Model(&p).On("CONFLICT (vendor_id, name) DO UPDATE SET name = EXCLUDED.name").Exec(ctx)
 	}
 
 	for _, r := range relations {
@@ -42,7 +44,6 @@ func importVendorsProductsRelations[T any](db *bun.DB, vendors []model.Vendor, p
 			continue
 		}
 
-		// Correctly compute deterministic IDs locally
 		cid := util.CVEID(cveUID)
 		pid := util.ProductID(vName, pName)
 

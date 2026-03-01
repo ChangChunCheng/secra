@@ -15,8 +15,9 @@ func ImportCVEs(db *bun.DB, sourceID string, cves []model.CVE) error {
 	
 	for i := range cves {
 		cves[i].SourceID = sourceID
+		// CRITICAL: Change conflict target to source_uid to enable true Upsert by CVE-ID
 		_, err := db.NewInsert().Model(&cves[i]).
-			On("CONFLICT (id) DO UPDATE SET title = EXCLUDED.title, description = EXCLUDED.description, severity = EXCLUDED.severity, cvss_score = EXCLUDED.cvss_score, status = EXCLUDED.status, updated_at = EXCLUDED.updated_at, source_id = EXCLUDED.source_id").
+			On("CONFLICT (source_uid) DO UPDATE SET title = EXCLUDED.title, description = EXCLUDED.description, severity = EXCLUDED.severity, cvss_score = EXCLUDED.cvss_score, status = EXCLUDED.status, updated_at = EXCLUDED.updated_at, source_id = EXCLUDED.source_id").
 			Exec(ctx)
 		
 		if err != nil {
@@ -26,7 +27,7 @@ func ImportCVEs(db *bun.DB, sourceID string, cves []model.CVE) error {
 	}
 
 	// Update daily stats after batch
-	db.NewRaw(`INSERT INTO daily_cve_counts (day, count)
+	_, _ = db.NewRaw(`INSERT INTO daily_cve_counts (day, count)
 		SELECT published_at::date as day, count(*) FROM cves GROUP BY day
 		ON CONFLICT (day) DO UPDATE SET count = EXCLUDED.count`).Exec(ctx)
 
@@ -38,7 +39,5 @@ func NotifyBatch(db *bun.DB, cves []model.CVE) {
 	ctx := context.Background()
 	cfg := config.Load()
 	notifier := service.NewNotificationService(cfg.SMTPConfig, db)
-	
-	// Delegate to the optimized ProcessBatch logic
 	notifier.ProcessBatch(ctx, cves)
 }
