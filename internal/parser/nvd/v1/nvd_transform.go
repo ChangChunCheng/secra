@@ -3,8 +3,8 @@ package v1
 import (
 	"strings"
 
-	"github.com/google/uuid"
 	"gitlab.com/jacky850509/secra/internal/model"
+	"gitlab.com/jacky850509/secra/internal/util"
 )
 
 // ConvertToCVEs 轉換解析後的 feed → DB-ready CVE 結構
@@ -20,7 +20,6 @@ func ConvertToCVEs(feed *Nvdv1CveFeed) ([]model.CVE, error) {
 			severity *string
 		)
 
-		// 選擇最高優先版本的 CVSS 資料
 		if item.Impact != nil {
 			if item.Impact.CVSSv4 != nil {
 				score = &item.Impact.CVSSv4.CvssData.BaseScore
@@ -35,8 +34,8 @@ func ConvertToCVEs(feed *Nvdv1CveFeed) ([]model.CVE, error) {
 		}
 
 		cve := model.CVE{
-			ID:          uuid.NewString(), // 直接使用 CVE-xxxx-yyyy 為主鍵
-			SourceID:    "",               // importer 決定
+			ID:          util.CVEID(meta.ID), // Deterministic UUID v5
+			SourceID:    "",
 			SourceUID:   meta.ID,
 			Title:       shortTitle(desc),
 			Description: desc,
@@ -53,27 +52,17 @@ func ConvertToCVEs(feed *Nvdv1CveFeed) ([]model.CVE, error) {
 	return results, nil
 }
 
-// 取第一段描述作為 Title
 func shortTitle(full string) string {
-	if len(full) > 180 {
-		full = full[:180]
-	}
-	if idx := strings.Index(full, "."); idx != -1 {
-		return full[:idx+1]
-	}
+	if len(full) > 180 { full = full[:180] }
+	if idx := strings.Index(full, "."); idx != -1 { return full[:idx+1] }
 	return full
 }
 
-// 擷取英文描述
 func extractEnglishDescription(desc Nvdv1CveDescription) string {
 	for _, d := range desc.DescriptionData {
-		if d.Lang == "en" {
-			return d.Value
-		}
+		if d.Lang == "en" { return d.Value }
 	}
 	return ""
 }
 
-func strPtr(s string) *string {
-	return &s
-}
+func strPtr(s string) *string { return &s }

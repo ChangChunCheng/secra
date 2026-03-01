@@ -109,8 +109,12 @@ func (s *Server) setupRoutes() {
 
 	s.mux.HandleFunc("/my/dashboard", s.requireAuth(s.handleMyDashboard))
 	s.mux.HandleFunc("/subscribe", s.requireAuth(s.handleSubscribe))
+	s.mux.HandleFunc("/unsubscribe", s.requireAuth(s.handleUnsubscribe))
+	s.mux.HandleFunc("/my/subscriptions/threshold", s.requireAuth(s.handleUpdateSubscriptionThreshold))
 
+	// Admin Routes
 	s.mux.HandleFunc("/admin/users", s.requireAdmin(s.handleAdminUsers))
+	s.mux.HandleFunc("/admin/users/role", s.requireAdmin(s.handleUpdateUserRole))
 }
 
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -148,7 +152,7 @@ func (s *Server) requireAdmin(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		user, ok := s.getUserFromSession(r)
 		if !ok || user.Role != "admin" {
-			http.Error(w, "Forbidden", http.StatusForbidden)
+			http.Error(w, "Forbidden: Admin access required", http.StatusForbidden)
 			return
 		}
 		next(w, r)
@@ -162,11 +166,16 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 	}
 	username := r.FormValue("username")
 	password := r.FormValue("password")
+	
+	log.Printf("🔑 Attempting login for user: %s", username)
 	token, _, err := s.userSvc.Login(r.Context(), username, password)
 	if err != nil {
+		log.Printf("❌ Login failed for %s: %v", username, err)
 		s.render(w, r, "auth/login.html", map[string]interface{}{"Error": "Invalid credentials"})
 		return
 	}
+	
+	log.Printf("✅ Login successful for %s, setting cookie", username)
 	http.SetCookie(w, &http.Cookie{
 		Name:     "session_token",
 		Value:    token,
@@ -303,7 +312,7 @@ func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
 		Join("LEFT JOIN cve_products cp ON cp.cve_id = c.id").
 		Join("LEFT JOIN products p ON p.id = cp.product_id").
 		Join("LEFT JOIN vendors v ON v.id = p.vendor_id").
-		Group("c.id", "cs.name").Order("c.published_at DESC").Limit(10).Scan(r.Context(), &recentCVEs)
+		Group("c.id", "cs.name").Order("c.published_at DESC", "c.source_uid ASC").Limit(10).Scan(r.Context(), &recentCVEs)
 
 	totalCVEs, _ := s.db.NewSelect().Model((*model.CVE)(nil)).Count(r.Context())
 	totalVendors, _ := s.db.NewSelect().Model((*model.Vendor)(nil)).Count(r.Context())
@@ -330,7 +339,10 @@ func (s *Server) handleProfile(w http.ResponseWriter, r *http.Request) {
 	cookie, _ := r.Cookie("session_token")
 	email := r.FormValue("email")
 	password := r.FormValue("password")
-	_, err := s.userSvc.UpdateProfile(r.Context(), cookie.Value, email, password, password)
+	frequency := r.FormValue("notification_frequency")
+	timezone := r.FormValue("timezone")
+
+	_, err := s.userSvc.UpdateProfile(r.Context(), cookie.Value, email, password, password, frequency, timezone)
 	if err != nil {
 		s.render(w, r, "user/profile.html", map[string]interface{}{"Error": err.Error()})
 		return
@@ -387,7 +399,7 @@ func (s *Server) handleCVEList(w http.ResponseWriter, r *http.Request) {
 	}
 
 	count, _ := query.Group("c.id", "cs.name").Count(r.Context())
-	_ = query.Order("c.published_at DESC").Limit(limit).Offset(offset).Scan(r.Context(), &results)
+	_ = query.Order("c.published_at DESC", "c.source_uid ASC").Limit(limit).Offset(offset).Scan(r.Context(), &results)
 	
 	totalPages := int(math.Ceil(float64(count) / float64(limit)))
 	if totalPages == 0 { totalPages = 1 }
@@ -436,7 +448,7 @@ func (s *Server) handleCVEDetail(w http.ResponseWriter, r *http.Request) {
 		Join("JOIN vendors v ON v.id = product.vendor_id").
 		Where("cp.cve_id = ?", id).
 		Join("JOIN cve_products cp ON cp.product_id = product.id").
-		Scan(r.Context(), &products)
+		Order("vendor_name ASC", "name ASC").Scan(r.Context(), &products)
 	s.render(w, r, "cve/detail.html", map[string]interface{}{
 		"CVE":        cve,
 		"SourceName": source.Name,
@@ -477,23 +489,31 @@ func (s *Server) handleVendorList(w http.ResponseWriter, r *http.Request) {
 	limit := 50
 	offset := (page - 1) * limit
 
+	user, isLogged := s.getUserFromSession(r)
+	userID := uuid.Nil
+	if isLogged { userID = user.ID }
+
 	type vendorWithStats struct {
 		model.Vendor
-		ProductCount int `bun:"product_count"`
+		ProductCount   int    `bun:"product_count"`
+		SubscriptionID string `bun:"subscription_id"`
 	}
 	var results []vendorWithStats
 
 	query := s.db.NewSelect().
 		TableExpr("vendors AS v").
 		ColumnExpr("v.*, count(p.id) as product_count").
-		Join("LEFT JOIN products p ON p.vendor_id = v.id")
+		ColumnExpr("s.id AS subscription_id").
+		Join("LEFT JOIN products p ON p.vendor_id = v.id").
+		Join("LEFT JOIN subscription_targets st ON st.target_id = v.id AND st.target_type_id = 2").
+		Join("LEFT JOIN subscriptions s ON s.id = st.subscription_id AND s.user_id = ?", userID)
 
 	if search != "" {
 		query.Where("v.name ILIKE ?", "%"+search+"%")
 	}
 
-	count, _ := query.Group("v.id").Count(r.Context())
-	_ = query.Order("v.name ASC").Limit(limit).Offset(offset).Scan(r.Context(), &results)
+	count, _ := query.Group("v.id", "s.id").Count(r.Context())
+	_ = query.Order("v.name ASC", "v.id ASC").Limit(limit).Offset(offset).Scan(r.Context(), &results)
 
 	totalPages := int(math.Ceil(float64(count) / float64(limit)))
 	if totalPages == 0 { totalPages = 1 }
@@ -527,16 +547,24 @@ func (s *Server) handleProductList(w http.ResponseWriter, r *http.Request) {
 	limit := 50
 	offset := (page - 1) * limit
 
+	user, isLogged := s.getUserFromSession(r)
+	userID := uuid.Nil
+	if isLogged { userID = user.ID }
+
 	type productWithVendor struct {
 		model.Product
-		VendorName string `bun:"vendor_name"`
+		VendorName     string `bun:"vendor_name"`
+		SubscriptionID string `bun:"subscription_id"`
 	}
 	var results []productWithVendor
 
 	query := s.db.NewSelect().
 		TableExpr("products AS p").
 		ColumnExpr("p.*, v.name AS vendor_name").
-		Join("JOIN vendors v ON v.id = p.vendor_id")
+		ColumnExpr("s.id AS subscription_id").
+		Join("JOIN vendors v ON v.id = p.vendor_id").
+		Join("LEFT JOIN subscription_targets st ON st.target_id = p.id AND st.target_type_id = 3").
+		Join("LEFT JOIN subscriptions s ON s.id = st.subscription_id AND s.user_id = ?", userID)
 
 	if search != "" {
 		query.Where("p.name ILIKE ?", "%"+search+"%")
@@ -546,7 +574,7 @@ func (s *Server) handleProductList(w http.ResponseWriter, r *http.Request) {
 	}
 
 	count, _ := query.Count(r.Context())
-	_ = query.Order("p.name ASC").Limit(limit).Offset(offset).Scan(r.Context(), &results)
+	_ = query.Order("vendor_name ASC", "p.name ASC", "p.id ASC").Limit(limit).Offset(offset).Scan(r.Context(), &results)
 
 	totalPages := int(math.Ceil(float64(count) / float64(limit)))
 	if totalPages == 0 { totalPages = 1 }
@@ -580,22 +608,36 @@ func (s *Server) handleMyDashboard(w http.ResponseWriter, r *http.Request) {
 		TargetName        string
 		SeverityThreshold string
 	}
-	var subs []enrichedSub
-	var vendorSubs []enrichedSub
-	s.db.NewSelect().Table("subscriptions").
-		ColumnExpr("subscriptions.id, 'vendor' as target_type, v.name as target_name, subscriptions.severity_threshold").
-		Join("JOIN vendors v ON v.id::text = (subscriptions.targets->0->>'target_id')").
-		Where("subscriptions.user_id = ?", user.ID).
+	vendorSubs := make([]enrichedSub, 0)
+	s.db.NewSelect().TableExpr("subscriptions AS s").
+		ColumnExpr("s.id, 'vendor' as target_type, v.name as target_name, s.severity_threshold").
+		Join("JOIN subscription_targets st ON st.subscription_id = s.id").
+		Join("JOIN vendors v ON v.id = st.target_id").
+		Where("s.user_id = ? AND st.target_type_id = 2", user.ID).
+		Order("target_name ASC").
 		Scan(r.Context(), &vendorSubs)
-	var productSubs []enrichedSub
-	s.db.NewSelect().Table("subscriptions").
-		ColumnExpr("subscriptions.id, 'product' as target_type, p.name as target_name, subscriptions.severity_threshold").
-		Join("JOIN products p ON p.id::text = (subscriptions.targets->0->>'target_id')").
-		Where("subscriptions.user_id = ?", user.ID).
+
+	productSubs := make([]enrichedSub, 0)
+	s.db.NewSelect().TableExpr("subscriptions AS s").
+		ColumnExpr("s.id, 'product' as target_type, p.name as target_name, s.severity_threshold").
+		Join("JOIN subscription_targets st ON st.subscription_id = s.id").
+		Join("JOIN products p ON p.id = st.target_id").
+		Where("s.user_id = ? AND st.target_type_id = 3", user.ID).
+		Order("target_name ASC").
 		Scan(r.Context(), &productSubs)
-	subs = append(vendorSubs, productSubs...)
+
+	for i := range vendorSubs {
+		t, _ := strconv.Atoi(vendorSubs[i].SeverityThreshold)
+		vendorSubs[i].SeverityThreshold = s.subscriptionSvc.SeverityToString(int16(t))
+	}
+	for i := range productSubs {
+		t, _ := strconv.Atoi(productSubs[i].SeverityThreshold)
+		productSubs[i].SeverityThreshold = s.subscriptionSvc.SeverityToString(int16(t))
+	}
+
 	s.render(w, r, "dashboard/my.html", map[string]interface{}{
-		"EnrichedSubs": subs,
+		"VendorSubs":  vendorSubs,
+		"ProductSubs": productSubs,
 	})
 }
 
@@ -612,8 +654,54 @@ func (s *Server) handleSubscribe(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
 }
 
+func (s *Server) handleUnsubscribe(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	user, _ := s.getUserFromSession(r)
+	id := r.FormValue("id")
+	s.subscriptionSvc.DeleteSubscription(r.Context(), user.ID.String(), id)
+	http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
+}
+
+func (s *Server) handleUpdateSubscriptionThreshold(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	user, _ := s.getUserFromSession(r)
+	subID := r.FormValue("id")
+	newThreshold := r.FormValue("threshold")
+	err := s.subscriptionSvc.UpdateThreshold(r.Context(), user.ID.String(), subID, newThreshold)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	http.Redirect(w, r, "/my/dashboard", http.StatusSeeOther)
+}
+
 func (s *Server) handleAdminUsers(w http.ResponseWriter, r *http.Request) {
 	var users []model.User
-	s.db.NewSelect().Model(&users).Order("username ASC").Scan(r.Context())
+	s.db.NewSelect().Model(&users).Order("username ASC", "id ASC").Scan(r.Context())
 	s.render(w, r, "user/list.html", map[string]interface{}{"Users": users})
+}
+
+func (s *Server) handleUpdateUserRole(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	userID := r.FormValue("user_id")
+	newRole := r.FormValue("role")
+	if newRole != "admin" && newRole != "user" {
+		http.Error(w, "Invalid role", http.StatusBadRequest)
+		return
+	}
+	_, err := s.db.NewUpdate().Table("users").Set("role = ?", newRole).Where("id = ?", userID).Exec(r.Context())
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	http.Redirect(w, r, "/admin/users", http.StatusSeeOther)
 }

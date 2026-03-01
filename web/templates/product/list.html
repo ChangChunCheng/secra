@@ -34,11 +34,18 @@
                 <td><strong>{{ .Name }}</strong></td>
                 <td>{{ .VendorName }}</td>
                 <td>
-                    <form action="/subscribe" method="POST" style="display:inline;">
-                        <input type="hidden" name="target_type" value="product">
-                        <input type="hidden" name="target_id" value="{{ .ID }}">
-                        <button type="submit" class="btn" style="font-size: 0.7rem; padding: 0 10px; height: 30px;">Subscribe</button>
-                    </form>
+                    {{ if .SubscriptionID }}
+                        <form action="/unsubscribe" method="POST" style="display:inline;">
+                            <input type="hidden" name="id" value="{{ .SubscriptionID }}">
+                            <button type="submit" class="btn" style="font-size: 0.7rem; padding: 0 10px; height: 30px; border-color: var(--danger-color); color: var(--danger-color);">Unsubscribe</button>
+                        </form>
+                    {{ else }}
+                        <form action="/subscribe" method="POST" style="display:inline;">
+                            <input type="hidden" name="target_type" value="product">
+                            <input type="hidden" name="target_id" value="{{ .ID }}">
+                            <button type="submit" class="btn" style="font-size: 0.7rem; padding: 0 10px; height: 30px;">Subscribe</button>
+                        </form>
+                    {{ end }}
                 </td>
             </tr>
             {{ end }}
