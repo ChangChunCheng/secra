@@ -19,24 +19,22 @@ RUN go mod download
 COPY . .
 COPY --from=generate /app/api/gen ./api/gen
 
-# Compile with host-provided metadata
+# Compile Consolidated Server
 RUN export GO_OS=$(go env GOOS) && \
     export GO_ARCH=$(go env GOARCH) && \
     export PKG="gitlab.com/jacky850509/secra/internal/config" && \
     export LDFLAGS="-X ${PKG}.Version=${VERSION} -X ${PKG}.BuildDate=${BUILD_DATE} -X ${PKG}.Commit=${GIT_COMMIT} -X ${PKG}.BuiltBy=${BUILT_BY} -X ${PKG}.OS=${GO_OS} -X ${PKG}.Arch=${GO_ARCH} -s -w" && \
-    CGO_ENABLED=0 go build -ldflags="${LDFLAGS}" -o secra-grpc ./cmd/server/grpc.go && \
-    CGO_ENABLED=0 go build -ldflags="${LDFLAGS}" -o secra-http ./cmd/server/http.go && \
+    CGO_ENABLED=0 go build -ldflags="${LDFLAGS}" -o secra-server ./cmd/server/main.go && \
     CGO_ENABLED=0 go build -ldflags="${LDFLAGS}" -o secra ./cmd/cli/secra.go
 
 # Stage 2: Final runtime image (Distroless for security)
 FROM gcr.io/distroless/static-debian12:latest
 WORKDIR /app
-COPY --from=builder /app/secra-grpc .
-COPY --from=builder /app/secra-http .
+COPY --from=builder /app/secra-server .
 COPY --from=builder /app/secra /usr/local/bin/secra
 COPY --from=builder /app/web ./web
 COPY --from=builder /app/migrations ./migrations
 
-# Default to HTTP server
-EXPOSE 8081
-CMD ["./secra-http"]
+# Expose both Ports
+EXPOSE 8081 50051
+ENTRYPOINT ["./secra-server"]

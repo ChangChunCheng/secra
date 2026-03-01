@@ -23,18 +23,16 @@ LDFLAGS := -X $(PKG).Version=$(VERSION) \
 
 all: build
 
-# 1. 本地构建
+# 1. 本地构建 (Consolidated)
 build:
 	@echo "🛠️  Building Secra binaries locally ($(VERSION))..."
 	@mkdir -p bin
-	go build -ldflags="$(LDFLAGS)" -o bin/secra-grpc ./cmd/server/grpc.go
-	go build -ldflags="$(LDFLAGS)" -o bin/secra-http ./cmd/server/http.go
+	go build -ldflags="$(LDFLAGS)" -o bin/secra-server ./cmd/server/main.go
 	go build -ldflags="$(LDFLAGS)" -o bin/secra ./cmd/cli/secra.go
 
-# 2. Docker 构建与启动
+# 2. Docker 构建与启动 (Simplified)
 docker-up:
-	@echo "🐳 Launching Secra in Docker with version $(VERSION)..."
-	@# 动态传递构建参数，确保不依赖 .env 文件中的静态定义
+	@echo "🐳 Launching Secra Monolith in Docker with version $(VERSION)..."
 	APP_VERSION=$(VERSION) \
 	BUILD_DATE=$(BUILD_DATE) \
 	GIT_COMMIT=$(GIT_COMMIT) \
