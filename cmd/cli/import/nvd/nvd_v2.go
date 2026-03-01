@@ -148,18 +148,21 @@ func ImportNvdv2Chunk(ctx context.Context, db *bun.DB, cfg *config.AppConfig, st
 		if len(feed.Vulnerabilities) == 0 { break }
 
 		cves, _ := nvd_v2_parser.ConvertToCVEsFromV2(&feed)
-		importer.ImportCVEs(db, source.ID, cves)
-
 		v, p, rel, ref, w := nvd_v2_parser.ExtractAllFromV2(&feed)
 		
-		// Map CVE UID to UUID for references/weaknesses
 		cveMap := make(map[string]string)
 		for _, c := range cves { cveMap[c.SourceUID] = c.ID }
 
-		// Standardized Importer Call - No Map needed for relations anymore
+		// STEP 1: Import CVEs FIRST (to satisfy Foreign Keys)
+		importer.ImportCVEs(db, source.ID, cves)
+
+		// STEP 2: Establish all relations
 		importer.ImportVendorsAndProductsFromv2(db, v, p, rel, nil, nil)
 		importer.ImportReferences(db, ref, cveMap)
 		importer.ImportWeaknesses(db, w, cveMap)
+
+		// STEP 3: Trigger batch notifications (Now relations are 100% complete)
+		importer.NotifyBatch(db, cves)
 
 		startIndex += len(feed.Vulnerabilities)
 		if startIndex >= feed.TotalResults { break }

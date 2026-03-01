@@ -6,7 +6,7 @@ import (
 
 var Cmd = &cobra.Command{
 	Use:   "health",
-	Short: "Health check commands for Docker and orchestration",
+	Short: "Health check and system testing",
 }
 
 func init() {

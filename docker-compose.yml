@@ -52,6 +52,8 @@ services:
       - "8081:8081"
     env_file:
       - .env
+    volumes:
+      - ./web:/app/web # Enable live template updates
     environment:
       - POSTGRES_DSN=postgres://postgres:postgres@db:5432/secra?sslmode=disable
       - GRPC_PORT=:50051

@@ -9,6 +9,7 @@ import (
 	"gitlab.com/jacky850509/secra/cmd/cli/health"
 	importcmd "gitlab.com/jacky850509/secra/cmd/cli/import"
 	"gitlab.com/jacky850509/secra/cmd/cli/migrate"
+	"gitlab.com/jacky850509/secra/cmd/cli/notify"
 	"gitlab.com/jacky850509/secra/cmd/cli/resource"
 	"gitlab.com/jacky850509/secra/cmd/cli/user"
 	"gitlab.com/jacky850509/secra/internal/config"
@@ -55,4 +56,5 @@ func init() {
 	rootCmd.AddCommand(importcmd.Cmd)
 	rootCmd.AddCommand(backup.BackupCmd)
 	rootCmd.AddCommand(health.Cmd)
+	rootCmd.AddCommand(notify.Cmd)
 }

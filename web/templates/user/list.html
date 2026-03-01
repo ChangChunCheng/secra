@@ -1,15 +1,19 @@
 {{ define "content" }}
 <div class="card">
-    <h2>User Administration</h2>
-    <p style="color: var(--text-secondary); margin-bottom: 20px;">Manage platform users and their access levels.</p>
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <h2>User Management (Admin Only)</h2>
+        <span class="badge low">{{ len .Users }} Users Total</span>
+    </div>
+
     <table>
         <thead>
             <tr>
                 <th>Username</th>
                 <th>Email</th>
-                <th>Role</th>
+                <th>Current Role</th>
                 <th>Status</th>
-                <th>Actions</th>
+                <th>Registered At</th>
+                <th>Action</th>
             </tr>
         </thead>
         <tbody>
@@ -18,13 +22,25 @@
                 <td><strong>{{ .Username }}</strong></td>
                 <td>{{ .Email }}</td>
                 <td>
-                    <span class="badge {{ if eq .Role "admin" }}high{{ else }}medium{{ end }}">
+                    <span class="badge {{ if eq .Role "admin" }}high{{ else }}low{{ end }}">
                         {{ .Role }}
                     </span>
                 </td>
-                <td>{{ .Status }}</td>
                 <td>
-                    <button class="btn" style="font-size: 0.7rem; color: var(--danger-color); border-color: var(--danger-color);">Deactivate</button>
+                    <span class="badge {{ if eq .Status "active" }}low{{ else }}high{{ end }}" style="background-color: {{ if eq .Status "active" }}var(--accent-color){{ else }}var(--danger-color){{ end }}; color: var(--bg-color);">
+                        {{ .Status }}
+                    </span>
+                </td>
+                <td><code style="font-size: 0.8rem;">{{ formatDate .CreatedAt }}</code></td>
+                <td>
+                    <form action="/admin/users/role" method="POST" style="display: flex; gap: 5px;">
+                        <input type="hidden" name="user_id" value="{{ .ID }}">
+                        <select name="role" style="height: 30px; font-size: 0.7rem; width: 80px; padding: 0 5px;">
+                            <option value="user" {{ if eq .Role "user" }}selected{{ end }}>User</option>
+                            <option value="admin" {{ if eq .Role "admin" }}selected{{ end }}>Admin</option>
+                        </select>
+                        <button type="submit" class="btn" style="height: 30px; padding: 0 10px; font-size: 0.7rem;">Update</button>
+                    </form>
                 </td>
             </tr>
             {{ end }}

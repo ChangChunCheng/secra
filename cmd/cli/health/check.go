@@ -3,100 +3,66 @@ package health
 import (
 	"context"
 	"fmt"
-	"net/http"
-	"os"
-	"strings"
-	"time"
+	"log"
 
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
-	"google.golang.org/grpc/health/grpc_health_v1"
-
 	"gitlab.com/jacky850509/secra/internal/config"
 	"gitlab.com/jacky850509/secra/internal/storage"
+	"gitlab.com/jacky850509/secra/internal/service"
 )
 
 var (
-	probeType string
-	addr      string
-	timeout   time.Duration
+	checkType string
+	testEmail string
 )
 
 var checkCmd = &cobra.Command{
 	Use:   "check",
-	Short: "Perform a health check (db, http, or grpc)",
+	Short: "Check system health or test services",
 	Run: func(cmd *cobra.Command, args []string) {
-		ctx, cancel := context.WithTimeout(context.Background(), timeout)
-		defer cancel()
+		cfg := config.Load()
 
-		var err error
-		switch probeType {
+		switch checkType {
 		case "db":
-			err = checkDB(ctx)
-		case "http":
-			err = checkHTTP(ctx, addr)
+			db := storage.NewDB(cfg.PostgresDSN, false)
+			defer db.Close()
+			if err := db.DB.Ping(); err != nil {
+				log.Fatalf("❌ Database connection failed: %v", err)
+			}
+			fmt.Println("✅ Database is healthy.")
+
 		case "grpc":
-			err = checkGRPC(ctx, addr)
+			conn, err := grpc.Dial(cfg.GRPCPort, grpc.WithTransportCredentials(insecure.NewCredentials()))
+			if err != nil {
+				log.Fatalf("❌ gRPC connection failed: %v", err)
+			}
+			defer conn.Close()
+			fmt.Println("✅ gRPC server is reachable.")
+
+		case "email":
+			if testEmail == "" {
+				log.Fatal("❌ Please provide a recipient email using --to flag")
+			}
+			db := storage.NewDB(cfg.PostgresDSN, false)
+			defer db.Close()
+			
+			notifier := service.NewNotificationService(cfg.SMTPConfig, db.DB)
+			log.Printf("📧 Sending test email to %s...", testEmail)
+			err := notifier.SendEmail(context.Background(), testEmail, "SECRA SMTP Test", "Congratulations! Your SECRA notification system is working correctly.")
+			if err != nil {
+				log.Fatalf("❌ Email failed: %v", err)
+			}
+			fmt.Println("✅ Test email sent successfully!")
+
 		default:
-			fmt.Printf("❌ Unknown probe type: %s\n", probeType)
-			os.Exit(1)
+			fmt.Println("Usage: secra health check --type [db|grpc|email] [--to recipient@example.com]")
 		}
-
-		if err != nil {
-			fmt.Printf("❌ Health check failed: %v\n", err)
-			os.Exit(1)
-		}
-
-		fmt.Println("✅ Health check passed")
 	},
 }
 
 func init() {
-	checkCmd.Flags().StringVar(&probeType, "type", "db", "Probe type: db, http, or grpc")
-	checkCmd.Flags().StringVar(&addr, "addr", "localhost:8081", "Address to check (for http/grpc)")
-	checkCmd.Flags().DurationVar(&timeout, "timeout", 2*time.Second, "Timeout for the check")
-}
-
-func checkDB(ctx context.Context) error {
-	cfg := config.Load()
-	dbWrapper := storage.NewDB(cfg.PostgresDSN, false)
-	defer dbWrapper.Close()
-
-	// dbWrapper.DB is *bun.DB, it has PingContext
-	return dbWrapper.DB.PingContext(ctx)
-}
-
-func checkHTTP(ctx context.Context, target string) error {
-	url := target
-	if !strings.HasPrefix(target, "http") {
-		url = "http://" + target + "/health"
-	}
-	req, _ := http.NewRequestWithContext(ctx, "GET", url, nil)
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("status: %d", resp.StatusCode)
-	}
-	return nil
-}
-
-func checkGRPC(ctx context.Context, target string) error {
-	conn, err := grpc.DialContext(ctx, target, grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithBlock())
-	if err != nil {
-		return err
-	}
-	defer conn.Close()
-	client := grpc_health_v1.NewHealthClient(conn)
-	resp, err := client.Check(ctx, &grpc_health_v1.HealthCheckRequest{Service: ""})
-	if err != nil {
-		return err
-	}
-	if resp.Status != grpc_health_v1.HealthCheckResponse_SERVING {
-		return fmt.Errorf("status: %s", resp.Status)
-	}
-	return nil
+	checkCmd.Flags().StringVar(&checkType, "type", "db", "Type of health check (db, grpc, email)")
+	checkCmd.Flags().StringVar(&testEmail, "to", "", "Recipient email for testing notification")
 }
