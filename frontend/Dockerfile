@@ -22,8 +22,9 @@ COPY --from=proto-gen /workspace/frontend/src/lib/gen ./src/lib/gen
 # Set build-time environment variable
 ARG NEXT_PUBLIC_API_URL=/api/v1
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+ENV SKIP_PROTO_GEN=true
 
-# Build the Next.js app (without prebuild script since we already generated types)
+# Build the Next.js app (skip prebuild proto generation, already done in stage 0)
 RUN npm run build
 
 # Stage 2: Serve static files AND proxy API via Nginx

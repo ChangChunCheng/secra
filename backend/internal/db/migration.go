@@ -38,6 +38,27 @@ func RunUp(db *bun.DB) {
 		log.Fatalf("migration init failed: %v", err)
 	}
 
+	// 檢查是否有待執行的 migrations
+	migrations, err := m.MigrationsWithStatus(ctx)
+	if err != nil {
+		log.Fatalf("failed to get migration status: %v", err)
+	}
+
+	// 計算待執行的 migration 數量
+	pendingCount := 0
+	for _, mig := range migrations {
+		if !mig.IsApplied() {
+			pendingCount++
+		}
+	}
+
+	if pendingCount == 0 {
+		log.Println("✅ All migrations already applied, skipping.")
+		return
+	}
+
+	log.Printf("📦 Found %d pending migration(s), applying...", pendingCount)
+
 	if err := m.Lock(ctx); err != nil {
 		log.Fatalf("migration lock failed: %v", err)
 	}
@@ -47,11 +68,16 @@ func RunUp(db *bun.DB) {
 		}
 	}()
 
-	if _, err := m.Migrate(ctx); err != nil {
+	group, err := m.Migrate(ctx)
+	if err != nil {
 		log.Fatalf("migration up failed: %v", err)
 	}
 
-	log.Println("✅ Migration complete.")
+	if group.IsZero() {
+		log.Println("✅ No new migrations to apply.")
+	} else {
+		log.Printf("✅ Successfully applied %d migration(s).", len(group.Migrations))
+	}
 }
 
 // RunStatus 顯示 migration 狀態

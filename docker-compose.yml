@@ -19,6 +19,7 @@ services:
   server:
     build:
       context: .
+      dockerfile: backend/Dockerfile
       args:
         VERSION: "${APP_VERSION:-dev}"
         BUILD_DATE: "${BUILD_DATE:-unknown}"
@@ -46,7 +47,7 @@ services:
   frontend:
     build:
       context: .
-      dockerfile: ./frontend/Dockerfile
+      dockerfile: frontend/Dockerfile
     container_name: secra-frontend
     ports:
       - "80:80" # Unified Entry Point

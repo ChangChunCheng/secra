@@ -4,7 +4,9 @@
   "private": true,
   "scripts": {
     "gen:proto": "cd ../api && buf generate",
+    "predev": "test \"$SKIP_PROTO_GEN\" = \"true\" || npm run gen:proto",
     "dev": "next dev",
+    "prebuild": "test \"$SKIP_PROTO_GEN\" = \"true\" || npm run gen:proto",
     "build": "next build",
     "start": "next start",
     "lint": "eslint"

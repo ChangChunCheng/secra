@@ -49,6 +49,9 @@ type AppConfig struct {
 	// Default Admin User
 	DefaultAdminUsername string
 	DefaultAdminPassword string
+
+	// Auto Migration (default: true for convenience)
+	AutoMigrate bool
 }
 
 func Load() *AppConfig {
@@ -57,6 +60,7 @@ func Load() *AppConfig {
 	maxRetries, _ := strconv.Atoi(getEnv("NVD_MAX_RETRIES", "5"))
 	retryDelaySec, _ := strconv.Atoi(getEnv("NVD_RETRY_DELAY_SECONDS", "10"))
 	smtpPort, _ := strconv.Atoi(getEnv("SMTP_PORT", "587"))
+	autoMigrate := getBoolEnv("AUTO_MIGRATE", true)
 
 	return &AppConfig{
 		GRPCPort:    getEnv("GRPC_PORT", ":50051"),
@@ -82,12 +86,24 @@ func Load() *AppConfig {
 
 		DefaultAdminUsername: getEnv("SECRA_ADMIN_USER", "admin"),
 		DefaultAdminPassword: getEnv("SECRA_ADMIN_PWD", "admin"),
+
+		AutoMigrate: autoMigrate,
 	}
 }
 
 func getEnv(key, fallback string) string {
 	if value, ok := os.LookupEnv(key); ok {
 		return value
+	}
+	return fallback
+}
+
+func getBoolEnv(key string, fallback bool) bool {
+	if value, ok := os.LookupEnv(key); ok {
+		b, err := strconv.ParseBool(value)
+		if err == nil {
+			return b
+		}
 	}
 	return fallback
 }

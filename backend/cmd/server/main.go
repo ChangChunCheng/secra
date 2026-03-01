@@ -19,6 +19,7 @@ import (
 	"gitlab.com/jacky850509/secra/cmd/server/grpc_server"
 	"gitlab.com/jacky850509/secra/cmd/server/http_server"
 	"gitlab.com/jacky850509/secra/internal/config"
+	"gitlab.com/jacky850509/secra/internal/db"
 	"gitlab.com/jacky850509/secra/internal/storage"
 )
 
@@ -26,16 +27,24 @@ func main() {
 	cfg := config.Load()
 
 	// 1. Unified Database Connection
-	db := storage.NewDB(cfg.PostgresDSN, true)
-	defer db.Close()
+	dbWrapper := storage.NewDB(cfg.PostgresDSN, true)
+	defer dbWrapper.Close()
 
-	// Initialize default admin user if not exists
-	initializeDefaultAdmin(db, cfg)
+	// 2. Auto-run database migrations (if enabled)
+	if cfg.AutoMigrate {
+		log.Println("🔄 Auto-migration enabled, checking database schema...")
+		db.RunUp(dbWrapper.DB)
+	} else {
+		log.Println("⚠️  Auto-migration disabled, skipping. Use 'secra migrate up' to apply manually.")
+	}
+
+	// 3. Initialize default admin user if not exists
+	initializeDefaultAdmin(dbWrapper, cfg)
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	// 2. Prepare gRPC - Ensure it listens on all interfaces (0.0.0.0)
+	// 4. Prepare gRPC - Ensure it listens on all interfaces (0.0.0.0)
 	grpcAddr := cfg.GRPCPort
 	if strings.Contains(grpcAddr, "127.0.0.1") {
 		grpcAddr = ":" + strings.Split(grpcAddr, ":")[1]
@@ -51,16 +60,16 @@ func main() {
 	grpc_health_v1.RegisterHealthServer(grpcSrv, healthSrv)
 	healthSrv.SetServingStatus("", grpc_health_v1.HealthCheckResponse_SERVING)
 
-	grpc_server.RegisterServices(grpcSrv, db.DB)
+	grpc_server.RegisterServices(grpcSrv, dbWrapper.DB)
 
-	// 3. Prepare HTTP
-	httpSrv := http_server.NewServer(db.DB)
+	// 5. Prepare HTTP
+	httpSrv := http_server.NewServer(dbWrapper.DB)
 	webSrv := &http.Server{
 		Addr:    cfg.HTTPPort,
 		Handler: httpSrv,
 	}
 
-	// 4. Start Servers
+	// 6. Start Servers
 	go func() {
 		log.Printf("🚀 gRPC Server starting on %s", grpcAddr)
 		if err := grpcSrv.Serve(grpcListener); err != nil && err != grpc.ErrServerStopped {
@@ -75,7 +84,7 @@ func main() {
 		}
 	}()
 
-	// 5. Graceful Shutdown
+	// 7. Graceful Shutdown
 	<-ctx.Done()
 	log.Println("🛑 Shutting down servers...")
 

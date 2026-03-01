@@ -14,9 +14,9 @@ ARG GIT_COMMIT=none
 ARG BUILT_BY=unknown
 
 WORKDIR /app
-COPY go.mod go.sum ./
+COPY backend/go.mod backend/go.sum ./
 RUN go mod download
-COPY . .
+COPY backend/ .
 COPY --from=generate /app/api/gen ./api/gen
 
 # Compile Consolidated Server
