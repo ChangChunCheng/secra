@@ -32,6 +32,24 @@ const safeFormatShortDate = (dateStr: any) => {
   } catch (e) { return ''; }
 };
 
+const safeFormatMonthYear = (dateStr: any) => {
+  if (!dateStr) return '';
+  try {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return '';
+    return d.toLocaleDateString('en-US', { year: 'numeric', month: 'short' });
+  } catch (e) { return ''; }
+};
+
+const safeFormatFullMonthYear = (dateStr: any) => {
+  if (!dateStr) return 'N/A';
+  try {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return 'N/A';
+    return d.toLocaleDateString('en-US', { year: 'numeric', month: 'long' });
+  } catch (e) { return 'N/A'; }
+};
+
 // --- SHARED COMPONENTS ---
 function StatusBadge({ severity }: { severity: string }) {
   const colors: Record<string, string> = {
@@ -145,12 +163,29 @@ export default function Dashboard() {
 
   const chartData = useMemo(() => {
     if (!stats?.chart_data) return [];
+    
+    // Choose formatters based on time range
+    const isMonthly = timeRange === '5y';
+    const isWeekly = timeRange === '1y';
+    
     return stats.chart_data.map((d: any) => ({
-      period: safeFormatShortDate(d.period),
+      period: isMonthly ? safeFormatMonthYear(d.period) : safeFormatShortDate(d.period),
       count: d.count,
-      label: safeFormatFullDate(d.period)
+      label: isMonthly ? safeFormatFullMonthYear(d.period) : safeFormatFullDate(d.period),
+      rawDate: d.period
     }));
-  }, [stats]);
+  }, [stats, timeRange]);
+
+  const dateRange = useMemo(() => {
+    if (!chartData || chartData.length === 0) return null;
+    const first = chartData[0]?.rawDate;
+    const last = chartData[chartData.length - 1]?.rawDate;
+    if (!first || !last) return null;
+    return {
+      start: safeFormatDate(first),
+      end: safeFormatDate(last)
+    };
+  }, [chartData]);
 
   if (!mounted) return <div className="bg-black min-h-screen" />;
 
@@ -188,10 +223,23 @@ export default function Dashboard() {
 
       {/* Threat Chart */}
       <div className="bg-black border border-green-900 rounded-sm p-8 mb-12 shadow-2xl">
-        <div className="flex justify-between items-center mb-10">
-          <h3 className="text-xs font-black text-green-800 uppercase flex items-center gap-3 italic tracking-widest">
-            <Activity className="w-4 h-4 text-green-500" /> Vulnerability Trends
-          </h3>
+        <div className="flex justify-between items-center mb-6">
+          <div>
+            <h3 className="text-xs font-black text-green-800 uppercase flex items-center gap-3 italic tracking-widest mb-2">
+              <Activity className="w-4 h-4 text-green-500" /> Vulnerability Trends
+            </h3>
+            {dateRange && (
+              <div className="text-[10px] text-green-900 font-mono">
+                <span className="text-green-700 uppercase font-black tracking-wider">Data Period:</span>{' '}
+                <span className="text-green-500 font-bold">{dateRange.start}</span>
+                <span className="text-green-700 mx-1">→</span>
+                <span className="text-green-500 font-bold">{dateRange.end}</span>
+                {stats?.latest_data_date && dateRange.end !== stats.latest_data_date && (
+                  <span className="text-green-700 ml-3">(<span className="text-green-400 font-bold">Latest DB: {stats.latest_data_date}</span>)</span>
+                )}
+              </div>
+            )}
+          </div>
           <div className="flex border border-green-900 p-1 rounded-sm bg-black">
             {['1w', '1m', '1y', '5y'].map((r) => (
               <button key={r} onClick={() => setTimeRange(r)} className={`px-3 py-1 text-[9px] font-black transition-all ${timeRange === r ? 'bg-green-500 text-black' : 'text-green-900 hover:text-green-400'}`}>
@@ -227,7 +275,7 @@ export default function Dashboard() {
                     return (
                       <div className="bg-black border border-green-500 p-3 shadow-2xl font-mono">
                         <p className="text-[10px] text-green-800 font-black mb-1 uppercase tracking-tighter">{payload[0].payload.label}</p>
-                        <p className="text-sm font-bold text-green-400 uppercase tracking-tighter">Detected: <span className="text-white">{payload[0].value}</span></p>
+                        <p className="text-sm font-bold text-green-400 uppercase tracking-tighter">CVEs: <span className="text-white">{payload[0].value.toLocaleString()}</span></p>
                       </div>
                     );
                   }

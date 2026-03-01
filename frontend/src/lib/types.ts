@@ -63,6 +63,7 @@ export interface StatsResponse {
   total_cves: number;
   total_vendors: number;
   total_products: number;
+  latest_data_date?: string;
   chart_data?: Array<{
     period: string;
     count: number;
