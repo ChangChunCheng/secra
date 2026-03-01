@@ -23,7 +23,7 @@ type UserServicer interface {
 	OAuthLogin(ctx context.Context, provider, providerUserID, email string) (*model.User, error)
 	Login(ctx context.Context, username, password string) (string, int64, error)
 	GetProfile(ctx context.Context, token string) (*model.User, error)
-	UpdateProfile(ctx context.Context, token, email, password string, confirmPassword string) (*model.User, error)
+	UpdateProfile(ctx context.Context, token, email, password, confirmPassword, frequency, timezone string) (*model.User, error)
 }
 
 // ensure UserService implements UserServicer
@@ -48,12 +48,10 @@ func NewUserService(r *repo.UserRepository) *UserService {
 func (s *UserService) CheckPassword(password string, confirmPassword string) (*string, error) {
 	passwordHash := ""
 	var err error
-	// validate password fields
 	if password != "" || confirmPassword != "" {
 		if password != confirmPassword {
 			return nil, status.Errorf(codes.InvalidArgument, "password and confirmPassword must match")
 		}
-		// password hash
 		passwordHash, err = auth.HashPassword(password)
 		if err != nil {
 			return nil, err
@@ -62,15 +60,11 @@ func (s *UserService) CheckPassword(password string, confirmPassword string) (*s
 	return &passwordHash, nil
 }
 
-// Register creates a new system user.
 func (s *UserService) Register(ctx context.Context, username, email, password string, confirmPassword string) (*model.User, error) {
-
 	passwordHash, err := s.CheckPassword(password, confirmPassword)
 	if err != nil {
 		return nil, err
 	}
-
-	// 防止重複
 	if existing, _ := s.repo.GetUserByUsername(ctx, username); existing.ID != uuid.Nil {
 		return nil, errors.New("username already exists")
 	}
@@ -92,14 +86,11 @@ func (s *UserService) Register(ctx context.Context, username, email, password st
 	return user, nil
 }
 
-// OAuthLogin finds or creates a user via OAuth.
 func (s *UserService) OAuthLogin(ctx context.Context, provider, providerUserID, email string) (*model.User, error) {
-	// existing code...
 	user, err := s.repo.GetUserByEmail(ctx, email)
 	if err == nil && user.ID != uuid.Nil {
 		return user, nil
 	}
-	// otherwise create new
 	newUser := &model.User{
 		ID:                 uuid.New(),
 		Username:           email,
@@ -118,7 +109,6 @@ func (s *UserService) OAuthLogin(ctx context.Context, provider, providerUserID, 
 }
 
 func (s *UserService) Login(ctx context.Context, username, password string) (string, int64, error) {
-	// 驗證使用者
 	user, err := s.repo.GetUserByUsername(ctx, username)
 	if err != nil {
 		return "", 0, err
@@ -139,7 +129,6 @@ func (s *UserService) Login(ctx context.Context, username, password string) (str
 	return token, expireAt, err
 }
 
-// generateJWT 建立 JWT 並回傳 token 及過期 Unix 時間
 func (s *UserService) generateJWT(sub []byte) (string, int64, error) {
 	expireAt := time.Now().Add(config.Load().JWTConfig.Expiry).Unix()
 	claims := jwt.RegisteredClaims{
@@ -148,7 +137,7 @@ func (s *UserService) generateJWT(sub []byte) (string, int64, error) {
 		IssuedAt:  jwt.NewNumericDate(time.Now()),
 	}
 	tokenObj := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	token, err := tokenObj.SignedString(config.Load().JWTConfig.Secret)
+	token, err := tokenObj.SignedString([]byte(config.Load().JWTConfig.Secret))
 	if err != nil {
 		return "", 0, err
 	}
@@ -156,18 +145,16 @@ func (s *UserService) generateJWT(sub []byte) (string, int64, error) {
 }
 
 func (s *UserService) parseJWT(token string) (*UserJWTSecret, error) {
-	// parse token
 	parsed, err := jwt.ParseWithClaims(token, &jwt.RegisteredClaims{}, func(t *jwt.Token) (interface{}, error) {
-		return config.Load().JWTConfig.Secret, nil
+		return []byte(config.Load().JWTConfig.Secret), nil
 	})
 	if err != nil {
 		return nil, err
 	}
 	claims, ok := parsed.Claims.(*jwt.RegisteredClaims)
-	if !ok || claims.Subject == "" {
-		return nil, errors.New("invalid token claims")
+	if !ok || !parsed.Valid {
+		return nil, errors.New("invalid token")
 	}
-	// subject contains marshaled UserJWTSecret
 	var secret *UserJWTSecret
 	if err := json.Unmarshal([]byte(claims.Subject), &secret); err != nil {
 		return nil, err
@@ -175,30 +162,37 @@ func (s *UserService) parseJWT(token string) (*UserJWTSecret, error) {
 	return secret, nil
 }
 
-// GetProfile parses the JWT token, retrieves the user ID, and returns the user profile.
 func (s *UserService) GetProfile(ctx context.Context, token string) (*model.User, error) {
 	secret, err := s.parseJWT(token)
 	if err != nil {
 		return nil, err
 	}
-	// retrieve user by ID
 	return s.repo.FindByID(ctx, secret.ID.String())
 }
 
-// UpdateProfile parses the JWT token, updates the user's email (ignoring fullName), and returns the updated user.
-// Note: fullName field is not stored in the user model and is ignored.
-func (s *UserService) UpdateProfile(ctx context.Context, token, email, password string, confirmPassword string) (*model.User, error) {
-
+func (s *UserService) UpdateProfile(ctx context.Context, token, email, password, confirmPassword, frequency, timezone string) (*model.User, error) {
 	passwordHash, err := s.CheckPassword(password, confirmPassword)
 	if err != nil {
 		return nil, err
 	}
-
-	// parse token to get user ID
 	secret, err := s.parseJWT(token)
 	if err != nil {
 		return nil, err
 	}
-	// update email via repository
-	return s.repo.UpdateEmailAndPassword(ctx, secret.ID.String(), email, *passwordHash)
+	
+	// Update extended fields
+	u, err := s.repo.FindByID(ctx, secret.ID.String())
+	if err != nil { return nil, err }
+	
+	u.Email = email
+	if *passwordHash != "" { u.PasswordHash = *passwordHash }
+	u.NotificationFrequency = frequency
+	u.Timezone = timezone
+	u.UpdatedAt = time.Now()
+
+	// Update in DB (Repo needs to handle these columns)
+	err = s.repo.UpdateFullProfile(ctx, u)
+	if err != nil { return nil, err }
+
+	return u, nil
 }

@@ -23,6 +23,15 @@ type JWTConfig struct {
 	Expiry time.Duration
 }
 
+type SMTPConfig struct {
+	Host       string
+	Port       int
+	User       string
+	Password   string
+	From       string
+	Encryption string // SSL, STARTTLS, or NONE
+}
+
 type AppConfig struct {
 	GRPCPort    string
 	HTTPPort    string
@@ -30,7 +39,8 @@ type AppConfig struct {
 	NvdURLv1    string
 	NvdURLv2    string
 
-	JWTConfig JWTConfig
+	JWTConfig  JWTConfig
+	SMTPConfig SMTPConfig
 
 	NvdMaxRetries int
 	NvdRetryDelay time.Duration
@@ -42,6 +52,7 @@ func Load() *AppConfig {
 
 	maxRetries, _ := strconv.Atoi(getEnv("NVD_MAX_RETRIES", "5"))
 	retryDelaySec, _ := strconv.Atoi(getEnv("NVD_RETRY_DELAY_SECONDS", "10"))
+	smtpPort, _ := strconv.Atoi(getEnv("SMTP_PORT", "587"))
 
 	return &AppConfig{
 		GRPCPort:    getEnv("GRPC_PORT", ":50051"),
@@ -52,6 +63,14 @@ func Load() *AppConfig {
 		JWTConfig: JWTConfig{
 			Secret: getEnv("JWT_SECRET", "super-secret-key"),
 			Expiry: 24 * time.Hour,
+		},
+		SMTPConfig: SMTPConfig{
+			Host:       getEnv("SMTP_HOST", ""),
+			Port:       smtpPort,
+			User:       getEnv("SMTP_USER", ""),
+			Password:   getEnv("SMTP_PASS", ""),
+			From:       getEnv("SMTP_FROM", ""),
+			Encryption: getEnv("SMTP_ENCRYPTION", "STARTTLS"),
 		},
 		NvdMaxRetries: maxRetries,
 		NvdRetryDelay: time.Duration(retryDelaySec) * time.Second,

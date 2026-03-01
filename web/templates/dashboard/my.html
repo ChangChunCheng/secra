@@ -1,44 +1,132 @@
 {{ define "content" }}
-<div class="card">
-    <h2>My Subscription Dashboard</h2>
-    <p style="color: var(--text-secondary);">Personalized intelligence feed based on your active subscriptions.</p>
+<div class="card" style="margin-bottom: 25px;">
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+        <div>
+            <h1 style="color: var(--accent-color); font-size: 1.8rem; margin-bottom: 5px;">USER COMMAND CENTER</h1>
+            <p style="color: var(--text-secondary);">Manage your monitored assets and notification thresholds. Changes are saved automatically.</p>
+        </div>
+        <div style="text-align: right;">
+            <div class="badge low" style="display: block; margin-bottom: 5px;">STATUS: ACTIVE</div>
+            <div class="badge medium" style="display: block;">SUBS: {{ if .VendorSubs }}{{ if .ProductSubs }}{{ add (len .VendorSubs) (len .ProductSubs) }}{{ else }}{{ len .VendorSubs }}{{ end }}{{ else if .ProductSubs }}{{ len .ProductSubs }}{{ else }}0{{ end }}</div>
+        </div>
+    </div>
 </div>
 
 <div class="grid">
-    <div class="card">
-        <h3>Active Subscriptions</h3>
-        {{ if .EnrichedSubs }}
+    <!-- Vendor Table -->
+    <div class="card" style="grid-column: span 2;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+            <h2 style="color: var(--accent-color); font-size: 1.2rem;">MONITORED VENDORS</h2>
+        </div>
+        <div class="table-container">
             <table>
                 <thead>
                     <tr>
-                        <th>Target Type</th>
-                        <th>Name</th>
-                        <th>Alert Threshold</th>
-                        <th>Action</th>
+                        <th>Asset Name</th>
+                        <th style="width: 180px;">Min. Severity</th>
+                        <th style="width: 80px; text-align: center;">Action</th>
                     </tr>
                 </thead>
                 <tbody>
-                    {{ range .EnrichedSubs }}
+                    {{ range .VendorSubs }}
                     <tr>
-                        <td><span class="badge low">{{ .TargetType }}</span></td>
-                        <td><strong>{{ .TargetName }}</strong></td>
-                        <td>{{ .SeverityThreshold }}</td>
+                        <td><strong style="font-size: 1rem;">{{ .TargetName }}</strong></td>
                         <td>
-                            <button class="btn" style="font-size: 0.7rem; color: var(--danger-color); border-color: var(--danger-color);">Unsubscribe</button>
+                            <form action="/my/subscriptions/threshold" method="POST" style="margin: 0;">
+                                <input type="hidden" name="id" value="{{ .ID }}">
+                                <select name="threshold" class="compact-select" onchange="this.form.submit()">
+                                    <option value="INFO" {{ if eq .SeverityThreshold "INFO" }}selected{{ end }}>INFO</option>
+                                    <option value="LOW" {{ if eq .SeverityThreshold "LOW" }}selected{{ end }}>LOW</option>
+                                    <option value="MEDIUM" {{ if eq .SeverityThreshold "MEDIUM" }}selected{{ end }}>MEDIUM</option>
+                                    <option value="HIGH" {{ if eq .SeverityThreshold "HIGH" }}selected{{ end }}>HIGH</option>
+                                    <option value="CRITICAL" {{ if eq .SeverityThreshold "CRITICAL" }}selected{{ end }}>CRITICAL</option>
+                                </select>
+                            </form>
+                        </td>
+                        <td style="text-align: center;">
+                            <form action="/unsubscribe" method="POST" style="margin: 0;">
+                                <input type="hidden" name="id" value="{{ .ID }}">
+                                <button type="submit" class="btn btn-xs btn-danger" title="Remove Subscription">X</button>
+                            </form>
                         </td>
                     </tr>
+                    {{ else }}
+                    <tr><td colspan="3" style="text-align: center; padding: 30px; color: var(--text-secondary);">No vendors monitored.</td></tr>
                     {{ end }}
                 </tbody>
             </table>
-        {{ else }}
-            <div style="padding: 40px; text-align: center; color: var(--text-secondary);">
-                <p>You haven't subscribed to any vendors or products yet.</p>
-                <div style="margin-top: 20px;">
-                    <a href="/vendors" class="btn" style="margin-right: 10px;">Browse Vendors</a>
-                    <a href="/products" class="btn">Browse Products</a>
-                </div>
-            </div>
-        {{ end }}
+        </div>
+    </div>
+
+    <!-- Product Table -->
+    <div class="card" style="grid-column: span 2;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+            <h2 style="color: var(--warning-color); font-size: 1.2rem;">MONITORED PRODUCTS</h2>
+        </div>
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Asset Name</th>
+                        <th style="width: 180px;">Min. Severity</th>
+                        <th style="width: 80px; text-align: center;">Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {{ range .ProductSubs }}
+                    <tr>
+                        <td><strong style="font-size: 1rem;">{{ .TargetName }}</strong></td>
+                        <td>
+                            <form action="/my/subscriptions/threshold" method="POST" style="margin: 0;">
+                                <input type="hidden" name="id" value="{{ .ID }}">
+                                <select name="threshold" class="compact-select" onchange="this.form.submit()">
+                                    <option value="INFO" {{ if eq .SeverityThreshold "INFO" }}selected{{ end }}>INFO</option>
+                                    <option value="LOW" {{ if eq .SeverityThreshold "LOW" }}selected{{ end }}>LOW</option>
+                                    <option value="MEDIUM" {{ if eq .SeverityThreshold "MEDIUM" }}selected{{ end }}>MEDIUM</option>
+                                    <option value="HIGH" {{ if eq .SeverityThreshold "HIGH" }}selected{{ end }}>HIGH</option>
+                                    <option value="CRITICAL" {{ if eq .SeverityThreshold "CRITICAL" }}selected{{ end }}>CRITICAL</option>
+                                </select>
+                            </form>
+                        </td>
+                        <td style="text-align: center;">
+                            <form action="/unsubscribe" method="POST" style="margin: 0;">
+                                <input type="hidden" name="id" value="{{ .ID }}">
+                                <button type="submit" class="btn btn-xs btn-danger" title="Remove Subscription">X</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {{ else }}
+                    <tr><td colspan="3" style="text-align: center; padding: 30px; color: var(--text-secondary);">No products monitored.</td></tr>
+                    {{ end }}
+                </tbody>
+            </table>
+        </div>
     </div>
 </div>
+
+<style>
+    .compact-select {
+        height: 32px !important;
+        font-size: 0.8rem !important;
+        padding: 0 10px !important;
+        background-color: var(--bg-color);
+        border: 1px solid var(--border-color);
+        color: var(--accent-color);
+        width: 100%;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+    .compact-select:hover {
+        border-color: var(--accent-color);
+        box-shadow: 0 0 8px rgba(0, 255, 65, 0.2);
+    }
+    .btn-xs { height: 32px !important; width: 32px !important; padding: 0 !important; font-size: 0.8rem !important; display: flex !important; align-items: center; justify-content: center; }
+    .btn-danger { border-color: var(--danger-color) !important; color: var(--danger-color) !important; }
+    .btn-danger:hover { background-color: var(--danger-color) !important; color: white !important; }
+    
+    table { width: 100%; border-collapse: collapse; }
+    th { text-align: left; padding: 12px 10px; border-bottom: 2px solid var(--border-color); font-size: 0.75rem; color: var(--text-secondary); text-transform: uppercase; }
+    td { padding: 15px 10px; border-bottom: 1px solid var(--border-color); background-color: rgba(255, 255, 255, 0.01); }
+    tr:hover td { background-color: rgba(0, 255, 65, 0.02); }
+</style>
 {{ end }}
