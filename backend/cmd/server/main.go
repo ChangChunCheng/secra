@@ -20,6 +20,7 @@ import (
 	"gitlab.com/jacky850509/secra/cmd/server/http_server"
 	"gitlab.com/jacky850509/secra/internal/config"
 	"gitlab.com/jacky850509/secra/internal/db"
+	"gitlab.com/jacky850509/secra/internal/scheduler"
 	"gitlab.com/jacky850509/secra/internal/storage"
 )
 
@@ -40,6 +41,24 @@ func main() {
 
 	// 3. Initialize default admin user if not exists
 	initializeDefaultAdmin(dbWrapper, cfg)
+
+	// 4. Initialize and start scheduler (if enabled)
+	var sched *scheduler.Scheduler
+	if cfg.ImportEnabled {
+		sched = scheduler.NewScheduler(dbWrapper, cfg)
+		nvdImporter := scheduler.NewNVDImporter(dbWrapper, cfg)
+		sched.RegisterImporter(nvdImporter)
+
+		schedulerCtx := context.Background()
+		go func() {
+			if err := sched.Start(schedulerCtx); err != nil {
+				log.Printf("⚠️ Scheduler failed to start: %v", err)
+			}
+		}()
+		log.Printf("✅ CVE Import Scheduler started (schedule: %s)", cfg.ImportSchedule)
+	} else {
+		log.Println("ℹ️ CVE Import Scheduler is disabled")
+	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
@@ -90,6 +109,12 @@ func main() {
 
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
+
+	// Stop scheduler first
+	if sched != nil {
+		log.Println("🛑 Stopping CVE Import Scheduler...")
+		sched.Stop()
+	}
 
 	if err := webSrv.Shutdown(shutdownCtx); err != nil {
 		log.Printf("⚠️ HTTP shutdown error: %v", err)

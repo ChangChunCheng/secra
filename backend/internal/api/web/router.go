@@ -538,10 +538,10 @@ func (h *handler) apiStats(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h.respondJSON(w, 200, map[string]interface{}{
-		"total_cves":      tc,
-		"total_vendors":   tv,
-		"total_products":  tp,
-		"chart_data":      chartData,
+		"total_cves":       tc,
+		"total_vendors":    tv,
+		"total_products":   tp,
+		"chart_data":       chartData,
 		"latest_data_date": end.Format("2006-01-02"),
 	})
 }
