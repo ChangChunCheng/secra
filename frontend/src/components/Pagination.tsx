@@ -34,44 +34,44 @@ export default function Pagination({ currentPage, totalPages, totalItems, onPage
 
   return (
     <div className="p-4 bg-green-950/10 border-t border-green-900 flex flex-col md:flex-row justify-between items-center gap-4">
-      <div className="text-[10px] text-green-800 uppercase font-black">
+      <div className="text-[10px] text-green-800 uppercase font-black text-center md:text-left">
         Total Found: <span className="text-green-500">{totalItems.toLocaleString()}</span>
       </div>
 
       <div className="flex items-center gap-2">
-        <div className="flex gap-1 mr-4">
+        <div className="flex gap-1 mr-2 md:mr-4">
           <button 
             disabled={currentPage === 1}
             onClick={() => onPageChange(1)}
-            className="p-2 border border-green-900 text-green-900 hover:border-green-400 disabled:opacity-10 transition-all"
+            className="p-2 border border-green-900 text-green-900 hover:border-green-400 hover:text-green-400 disabled:opacity-10 transition-all rounded-sm"
           >
             <ChevronsLeft className="w-4 h-4" />
           </button>
           <button 
             disabled={currentPage === 1}
             onClick={() => onPageChange(currentPage - 1)}
-            className="p-2 border border-green-900 text-green-900 hover:border-green-400 disabled:opacity-10 transition-all"
+            className="p-2 border border-green-900 text-green-900 hover:border-green-400 hover:text-green-400 disabled:opacity-10 transition-all rounded-sm"
           >
             <ChevronLeft className="w-4 h-4" />
           </button>
         </div>
 
-        <span className="text-[10px] font-black tracking-widest text-green-400 uppercase">
+        <span className="text-[10px] font-black tracking-widest text-green-400 uppercase whitespace-nowrap">
           Page {currentPage} of {totalPages}
         </span>
 
-        <div className="flex gap-1 ml-4">
+        <div className="flex gap-1 ml-2 md:ml-4">
           <button 
             disabled={currentPage === totalPages}
             onClick={() => onPageChange(currentPage + 1)}
-            className="p-2 border border-green-900 text-green-900 hover:border-green-400 disabled:opacity-10 transition-all"
+            className="p-2 border border-green-900 text-green-900 hover:border-green-400 hover:text-green-400 disabled:opacity-10 transition-all rounded-sm"
           >
             <ChevronRight className="w-4 h-4" />
           </button>
           <button 
             disabled={currentPage === totalPages}
             onClick={() => onPageChange(totalPages)}
-            className="p-2 border border-green-900 text-green-900 hover:border-green-400 disabled:opacity-10 transition-all"
+            className="p-2 border border-green-900 text-green-900 hover:border-green-400 hover:text-green-400 disabled:opacity-10 transition-all rounded-sm"
           >
             <ChevronsRight className="w-4 h-4" />
           </button>
@@ -79,7 +79,7 @@ export default function Pagination({ currentPage, totalPages, totalItems, onPage
       </div>
 
       <form onSubmit={handleJump} className="flex items-center gap-2">
-        <span className="text-[9px] text-green-900 uppercase font-bold tracking-tighter">Go to page:</span>
+        <span className="text-[9px] text-green-900 uppercase font-bold tracking-tighter whitespace-nowrap">Jump to:</span>
         <input 
           type="text"
           className="w-12 bg-black border border-green-900 rounded-sm py-1 px-2 text-[10px] text-green-400 focus:border-green-400 outline-none text-center"

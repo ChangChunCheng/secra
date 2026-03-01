@@ -1,7 +1,7 @@
 'use client';
 import React, { useState, useEffect } from 'react';
 import { useGetCVEsQuery, useGetCVEDetailQuery } from '@/lib/features/apiSlice';
-import { Search, X, ExternalLink, Shield, Calendar, Database, Package } from 'lucide-react';
+import { Search, X, ExternalLink, Shield, Calendar, Database, Package, Filter, ChevronDown, ChevronUp } from 'lucide-react';
 import Pagination from '@/components/Pagination';
 import ViewToggle, { ViewMode } from '@/components/ViewToggle';
 
@@ -113,6 +113,7 @@ export default function CVEPage() {
   const [selectedCVE, setSelectedCVE] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const [filters, setFilters] = useState({ q: '', start_date: '', end_date: '', vendor: '', product: '' });
+  const [showFilters, setShowFilters] = useState(false);
 
   const { data, isLoading, isError } = useGetCVEsQuery({ ...filters, page });
 
@@ -128,56 +129,86 @@ export default function CVEPage() {
   const cves = Array.isArray(data?.data) ? data.data : [];
 
   return (
-    <div className="p-8 max-w-7xl mx-auto font-mono text-green-500">
-      <div className="mb-12 space-y-8">
-        <div className="flex flex-col md:flex-row justify-between items-center gap-8 border-b border-green-900 pb-10 bg-green-950/5 p-6 rounded-sm relative overflow-hidden">
-          <div className="flex items-center gap-4">
-            <Shield className="w-10 h-10 text-green-500" />
-            <div>
-              <h1 className="text-4xl font-black text-green-400 italic tracking-tighter uppercase">CVEs</h1>
-              <p className="text-[10px] text-green-800 tracking-[0.4em] uppercase font-bold">Security Alerts Registry</p>
+    <div className="p-4 md:p-8 max-w-7xl mx-auto font-mono text-green-500">
+      <div className="mb-8 md:mb-12 space-y-6 md:space-y-8">
+        <div className="flex flex-row justify-between items-center gap-4 md:gap-8 border-b border-green-900 pb-6 md:pb-10 bg-green-950/5 p-4 md:p-6 rounded-sm relative overflow-hidden">
+          <div className="flex items-center gap-3 md:gap-4 flex-1 min-w-0">
+            <Shield className="w-7 h-7 md:w-10 md:h-10 text-green-500 flex-shrink-0" />
+            <div className="min-w-0">
+              <h1 className="text-xl md:text-4xl font-black text-green-400 italic tracking-tighter uppercase">CVEs</h1>
+              <p className="text-[8px] md:text-[10px] text-green-800 tracking-[0.2em] md:tracking-[0.4em] uppercase font-bold">Security Alerts</p>
             </div>
           </div>
           <ViewToggle mode={viewMode} onModeChange={setViewMode} />
         </div>
 
         {/* Filter Bar */}
-        <div className="bg-black border border-green-900 p-6 rounded-sm shadow-2xl grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
-          <div className="relative group lg:col-span-2">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-green-900 group-focus-within:text-green-400 transition-colors" />
-            <input 
-              type="text" placeholder="QUERY ID OR CONTENT..."
-              className="w-full bg-black border border-green-900 rounded-sm py-2.5 pl-10 pr-4 text-xs text-green-400 focus:border-green-400 outline-none transition-all placeholder:text-green-950 uppercase italic font-bold"
-              value={filters.q}
-              onChange={(e) => handleFilterChange('q', e.target.value)}
-            />
+        <div className="bg-black border border-green-900 p-4 md:p-6 rounded-sm shadow-2xl space-y-3 md:space-y-0">
+          {/* Main Search - Always Visible */}
+          <div className="space-y-2">
+            <div className="relative group">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-green-900 group-focus-within:text-green-400 transition-colors" />
+              <input 
+                type="text" placeholder="SEARCH CVE ID OR CONTENT..."
+                className="w-full bg-black border border-green-900 rounded-sm py-2.5 pl-10 pr-4 text-xs text-green-400 focus:border-green-400 outline-none transition-all placeholder:text-green-950 uppercase italic font-bold"
+                value={filters.q}
+                onChange={(e) => handleFilterChange('q', e.target.value)}
+              />
+            </div>
+            {/* Mobile Filter Hint */}
+            <div className="md:hidden flex items-center justify-between text-[10px] text-green-700">
+              <span className="italic">4 additional filters available</span>
+              <button 
+                onClick={() => setShowFilters(!showFilters)}
+                className="text-green-500 hover:text-green-400 underline font-bold uppercase"
+              >
+                {showFilters ? 'Hide Filters' : 'Show Filters'}
+              </button>
+            </div>
           </div>
-          <div className="relative group">
-            <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-green-900 group-focus-within:text-green-400 transition-colors" />
-            <input 
-              type="date"
-              className="w-full bg-black border border-green-900 rounded-sm py-2.5 pl-10 pr-4 text-xs text-green-400 focus:border-green-400 outline-none transition-all appearance-none"
-              value={filters.start_date}
-              onChange={(e) => handleFilterChange('start_date', e.target.value)}
-            />
-          </div>
-          <div className="relative group">
-            <Database className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-green-900 group-focus-within:text-green-400 transition-colors" />
-            <input 
-              type="text" placeholder="FILTER VENDOR..."
-              className="w-full bg-black border border-green-900 rounded-sm py-2.5 pl-10 pr-4 text-xs text-green-100 focus:border-green-400 outline-none transition-all placeholder:text-green-950 uppercase font-bold"
-              value={filters.vendor}
-              onChange={(e) => handleFilterChange('vendor', e.target.value)}
-            />
-          </div>
-          <div className="relative group">
-            <Package className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-green-900 group-focus-within:text-green-400 transition-colors" />
-            <input 
-              type="text" placeholder="FILTER PRODUCT..."
-              className="w-full bg-black border border-green-900 rounded-sm py-2.5 pl-10 pr-4 text-xs text-green-100 focus:border-green-400 outline-none transition-all placeholder:text-green-950 uppercase font-bold"
-              value={filters.product}
-              onChange={(e) => handleFilterChange('product', e.target.value)}
-            />
+
+          {/* Advanced Filters - Collapsible on Mobile */}
+          <div className={`grid grid-cols-1 md:grid-cols-4 gap-3 md:gap-4 transition-all ${showFilters ? 'grid' : 'hidden md:grid'}`}>
+            <div className="relative group">
+              <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-green-900 group-focus-within:text-green-400 transition-colors" />
+              <input 
+                type="date"
+                lang="en"
+                placeholder="From Date"
+                className="w-full bg-black border border-green-900 rounded-sm py-2.5 pl-10 pr-4 text-xs text-green-400 focus:border-green-400 outline-none transition-all appearance-none [&::-webkit-calendar-picker-indicator]:invert [&::-webkit-calendar-picker-indicator]:opacity-50"
+                value={filters.start_date}
+                onChange={(e) => handleFilterChange('start_date', e.target.value)}
+              />
+            </div>
+            <div className="relative group">
+              <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-green-900 group-focus-within:text-green-400 transition-colors" />
+              <input 
+                type="date"
+                lang="en"
+                placeholder="To Date"
+                className="w-full bg-black border border-green-900 rounded-sm py-2.5 pl-10 pr-4 text-xs text-green-400 focus:border-green-400 outline-none transition-all appearance-none [&::-webkit-calendar-picker-indicator]:invert [&::-webkit-calendar-picker-indicator]:opacity-50"
+                value={filters.end_date}
+                onChange={(e) => handleFilterChange('end_date', e.target.value)}
+              />
+            </div>
+            <div className="relative group">
+              <Database className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-green-900 group-focus-within:text-green-400 transition-colors" />
+              <input 
+                type="text" placeholder="FILTER VENDOR..."
+                className="w-full bg-black border border-green-900 rounded-sm py-2.5 pl-10 pr-4 text-xs text-green-100 focus:border-green-400 outline-none transition-all placeholder:text-green-950 uppercase font-bold"
+                value={filters.vendor}
+                onChange={(e) => handleFilterChange('vendor', e.target.value)}
+              />
+            </div>
+            <div className="relative group">
+              <Package className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-green-900 group-focus-within:text-green-400 transition-colors" />
+              <input 
+                type="text" placeholder="FILTER PRODUCT..."
+                className="w-full bg-black border border-green-900 rounded-sm py-2.5 pl-10 pr-4 text-xs text-green-100 focus:border-green-400 outline-none transition-all placeholder:text-green-950 uppercase font-bold"
+                value={filters.product}
+                onChange={(e) => handleFilterChange('product', e.target.value)}
+              />
+            </div>
           </div>
         </div>
       </div>
@@ -202,31 +233,31 @@ export default function CVEPage() {
               <table className="w-full text-left">
                 <thead>
                   <tr className="text-[10px] text-green-800 uppercase border-b border-green-900/50 bg-green-900/10 font-black tracking-widest">
-                    <th className="p-6">CVE ID</th>
-                    <th className="p-6 text-center">Severity</th>
-                    <th className="p-6 text-center">CVSS</th>
-                    <th className="p-6">Affected Assets</th>
-                    <th className="p-6">Summary</th>
-                    <th className="p-6 text-right">Published</th>
+                    <th className="p-3 md:p-6">CVE ID</th>
+                    <th className="p-3 md:p-6 text-center">Severity</th>
+                    <th className="p-3 md:p-6 text-center">CVSS</th>
+                    <th className="p-3 md:p-6 hidden sm:table-cell">Affected Assets</th>
+                    <th className="p-3 md:p-6 hidden lg:table-cell">Summary</th>
+                    <th className="p-3 md:p-6 text-right">Published</th>
                   </tr>
                 </thead>
                 <tbody className="text-xs">
                   {cves.length === 0 ? (
-                    <tr><td colSpan={6} className="py-24 text-center text-green-950 italic font-black uppercase tracking-widest">Null Set: Zero Matches Found</td></tr>
+                    <tr><td colSpan={6} className="py-12 md:py-24 text-center text-green-950 italic font-black uppercase tracking-widest text-xs md:text-sm">Null Set: Zero Matches Found</td></tr>
                   ) : cves.map((cve: any) => (
                     <tr key={cve.id || Math.random()} onClick={() => setSelectedCVE(cve.id)} className="border-b border-green-900/20 hover:bg-green-400/5 cursor-pointer group transition-all">
-                      <td className="p-6 font-bold text-green-400 group-hover:text-green-100 uppercase">{cve.source_uid || 'N/A'}</td>
-                      <td className="p-6 text-center"><StatusBadge severity={cve.severity} /></td>
-                      <td className="p-6 text-center"><CVSSScoreDisplay score={cve.cvss_score} /></td>
-                      <td className="p-6">
+                      <td className="p-3 md:p-6 font-bold text-green-400 group-hover:text-green-100 uppercase text-[10px] md:text-xs">{cve.source_uid || 'N/A'}</td>
+                      <td className="p-3 md:p-6 text-center"><StatusBadge severity={cve.severity} /></td>
+                      <td className="p-3 md:p-6 text-center"><CVSSScoreDisplay score={cve.cvss_score} /></td>
+                      <td className="p-3 md:p-6 hidden sm:table-cell">
                         <div className="flex flex-wrap gap-1 max-w-[200px]">
                           {cve.assets ? cve.assets.split(', ').slice(0, 2).map((a: string, i: number) => (
                             <span key={i} className="text-[8px] bg-green-900/10 text-green-700 px-1 border border-green-900/20 uppercase font-bold font-sans">{a}</span>
                           )) : <span className="text-[8px] text-green-950 italic uppercase">None</span>}
                         </div>
                       </td>
-                      <td className="p-6 max-w-md truncate opacity-70 group-hover:opacity-100 font-sans italic">{cve.title || cve.description || 'No data'}</td>
-                      <td className="p-6 text-right text-green-900 font-mono text-[10px] uppercase">
+                      <td className="p-3 md:p-6 max-w-md truncate opacity-70 group-hover:opacity-100 font-sans italic hidden lg:table-cell">{cve.title || cve.description || 'No data'}</td>
+                      <td className="p-3 md:p-6 text-right text-green-900 font-mono text-[10px] uppercase">
                         {formatSafeDate(cve.published_at)}
                       </td>
                     </tr>
@@ -235,7 +266,7 @@ export default function CVEPage() {
               </table>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 mb-4">
               {cves.map((cve: any) => (
                 <div key={cve.id || Math.random()} onClick={() => setSelectedCVE(cve.id)} className="bg-black border border-green-900/50 p-6 rounded-sm hover:border-green-400 transition-all cursor-pointer group shadow-xl relative overflow-hidden">
                   <div className="flex justify-between items-start mb-6">

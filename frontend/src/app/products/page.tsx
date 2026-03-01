@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { useGetProductsQuery, useSubscribeMutation, useUnsubscribeMutation } from '@/lib/features/apiSlice';
 import { useSelector } from 'react-redux';
 import { RootState } from '@/lib/store';
-import { Search, Loader2, Package, Lock, Database } from 'lucide-react';
+import { Search, Loader2, Package, Lock, Database, Filter, ChevronDown, ChevronUp } from 'lucide-react';
 import Link from 'next/link';
 import Pagination from '@/components/Pagination';
 import ViewToggle, { ViewMode } from '@/components/ViewToggle';
@@ -14,6 +14,7 @@ export default function ProductsPage() {
   const [page, setPage] = useState(1);
   const [filters, setFilters] = useState({ product: '', vendor: '' });
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [showFilters, setShowFilters] = useState(false);
   
   const { data, isLoading, isError, refetch } = useGetProductsQuery({ ...filters, page });
   const [subscribe, { isLoading: isSubscribing }] = useSubscribeMutation();
@@ -61,38 +62,55 @@ export default function ProductsPage() {
   const products = data?.data || [];
 
   return (
-    <div className="p-8 max-w-7xl mx-auto font-mono text-green-500">
-      <div className="mb-12 space-y-8">
-        <div className="flex flex-col md:flex-row justify-between items-center gap-8 border-b border-green-900 pb-10 bg-green-950/5 p-6 rounded-sm">
-          <div className="flex items-center gap-4">
-            <Package className="w-10 h-10 text-yellow-500" />
-            <div>
-              <h1 className="text-4xl font-black text-yellow-500 uppercase italic tracking-tighter">Products</h1>
-              <p className="text-[10px] text-green-800 tracking-[0.4em] uppercase font-bold">Security Asset Inventory</p>
+    <div className="p-4 md:p-8 max-w-7xl mx-auto font-mono text-green-500">
+      <div className="mb-8 md:mb-12 space-y-6 md:space-y-8">
+        <div className="flex flex-row justify-between items-center gap-4 md:gap-8 border-b border-green-900 pb-6 md:pb-10 bg-green-950/5 p-4 md:p-6 rounded-sm">
+          <div className="flex items-center gap-3 md:gap-4 flex-1 min-w-0">
+            <Package className="w-7 h-7 md:w-10 md:h-10 text-yellow-500 flex-shrink-0" />
+            <div className="min-w-0">
+              <h1 className="text-xl md:text-4xl font-black text-yellow-500 uppercase italic tracking-tighter">Products</h1>
+              <p className="text-[8px] md:text-[10px] text-green-800 tracking-[0.2em] md:tracking-[0.4em] uppercase font-bold">Asset Inventory</p>
             </div>
           </div>
           <ViewToggle mode={viewMode} onModeChange={setViewMode} />
         </div>
 
-        {/* Advanced Search Matrix */}
-        <div className="bg-black border border-green-900 p-6 rounded-sm shadow-2xl grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="relative group">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-green-900 group-focus-within:text-yellow-500 transition-colors" />
-            <input 
-              type="text" placeholder="FILTER BY PRODUCT NAME..."
-              className="w-full bg-black border border-green-900 rounded-sm py-3 pl-10 pr-4 text-xs text-green-400 focus:border-yellow-500 outline-none transition-all placeholder:text-green-950 uppercase italic font-bold"
-              value={filters.product}
-              onChange={(e) => handleFilterChange('product', e.target.value)}
-            />
+        {/* Search Filters */}
+        <div className="bg-black border border-green-900 p-4 md:p-6 rounded-sm shadow-2xl space-y-3 md:space-y-0">
+          {/* Main Search - Always Visible */}
+          <div className="space-y-2">
+            <div className="relative group">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-green-900 group-focus-within:text-yellow-500 transition-colors" />
+              <input 
+                type="text" placeholder="SEARCH PRODUCT NAME..."
+                className="w-full bg-black border border-green-900 rounded-sm py-3 pl-10 pr-4 text-xs text-green-400 focus:border-yellow-500 outline-none transition-all placeholder:text-green-950 uppercase italic font-bold"
+                value={filters.product}
+                onChange={(e) => handleFilterChange('product', e.target.value)}
+              />
+            </div>
+            {/* Mobile Filter Hint */}
+            <div className="md:hidden flex items-center justify-between text-[10px] text-green-700">
+              <span className="italic">1 additional filter available</span>
+              <button 
+                onClick={() => setShowFilters(!showFilters)}
+                className="text-green-500 hover:text-green-400 underline font-bold uppercase"
+              >
+                {showFilters ? 'Hide Filter' : 'Show Filter'}
+              </button>
+            </div>
           </div>
-          <div className="relative group">
-            <Database className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-green-900 group-focus-within:text-yellow-500 transition-colors" />
-            <input 
-              type="text" placeholder="FILTER BY PARENT VENDOR..."
-              className="w-full bg-black border border-green-900 rounded-sm py-3 pl-10 pr-4 text-xs text-green-100 focus:border-yellow-500 outline-none transition-all placeholder:text-green-950 uppercase italic font-bold"
-              value={filters.vendor}
-              onChange={(e) => handleFilterChange('vendor', e.target.value)}
-            />
+
+          {/* Vendor Filter - Collapsible on Mobile */}
+          <div className={`transition-all ${showFilters ? 'block' : 'hidden md:block'}`}>
+            <div className="relative group">
+              <Database className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-green-900 group-focus-within:text-yellow-500 transition-colors" />
+              <input 
+                type="text" placeholder="FILTER BY VENDOR..."
+                className="w-full bg-black border border-green-900 rounded-sm py-3 pl-10 pr-4 text-xs text-green-100 focus:border-yellow-500 outline-none transition-all placeholder:text-green-950 uppercase italic font-bold"
+                value={filters.vendor}
+                onChange={(e) => handleFilterChange('vendor', e.target.value)}
+              />
+            </div>
           </div>
         </div>
       </div>

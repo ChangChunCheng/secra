@@ -190,31 +190,31 @@ export default function Dashboard() {
   if (!mounted) return <div className="bg-black min-h-screen" />;
 
   return (
-    <div className="p-8 max-w-7xl mx-auto font-mono text-green-500">
-      <header className="flex flex-col md:flex-row justify-between items-start md:items-end mb-12 border-b border-green-900/50 pb-8 gap-6">
+    <div className="p-4 md:p-8 max-w-7xl mx-auto font-mono text-green-500">
+      <header className="flex flex-row justify-between items-end mb-8 md:mb-12 border-b border-green-900/50 pb-6 md:pb-8 gap-4 md:gap-6">
         <div>
           <div className="flex items-center gap-3">
-            <Shield className="w-10 h-10 text-green-500" />
-            <h1 className="text-5xl font-black tracking-tighter text-green-400 italic uppercase">SECRA</h1>
+            <Shield className="w-8 h-8 md:w-10 md:h-10 text-green-500" />
+            <h1 className="text-3xl md:text-5xl font-black tracking-tighter text-green-400 italic uppercase">SECRA</h1>
           </div>
-          <p className="text-[9px] text-green-800 tracking-[0.6em] uppercase pl-1 font-bold mt-2">Security Risk & Asset Monitor</p>
+          <p className="text-[9px] text-green-800 tracking-[0.4em] md:tracking-[0.6em] uppercase pl-1 font-bold mt-2">Security Risk & Asset Monitor</p>
         </div>
-        <div className="text-right hidden md:block">
+        <div className="text-right">
           <div className="text-[10px] text-green-800 uppercase font-black mb-1">Status</div>
-          <div className="text-xs text-green-400 border border-green-900 px-4 py-1 rounded-full bg-green-950/20 uppercase">● Online</div>
+          <div className="text-xs text-green-400 border border-green-900 px-4 py-1 rounded-full bg-green-950/20 uppercase inline-block whitespace-nowrap">● Online</div>
         </div>
       </header>
 
       {/* Global Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 mb-6 md:mb-8">
         {[
           { label: 'Total CVEs', val: stats?.total_cves || 0, color: 'text-red-500' },
           { label: 'Vendors', val: stats?.total_vendors || 0, color: 'text-blue-500' },
           { label: 'Products', val: stats?.total_products || 0, color: 'text-yellow-500' },
         ].map((stat, i) => (
-          <div key={i} className="bg-black border border-green-900/40 p-6 rounded-sm shadow-xl hover:border-green-400 transition-all group">
+          <div key={i} className="bg-black border border-green-900/40 p-4 md:p-6 rounded-sm shadow-xl hover:border-green-400 transition-all group">
             <div className="text-[10px] text-green-900 font-black mb-2 tracking-widest uppercase">{stat.label}</div>
-            <div className={`text-4xl font-black ${stat.color} tracking-tighter tabular-nums`}>
+            <div className={`text-2xl md:text-4xl font-black ${stat.color} tracking-tighter tabular-nums`}>
               {statsLoading ? '...' : stat.val.toLocaleString()}
             </div>
           </div>
@@ -222,8 +222,8 @@ export default function Dashboard() {
       </div>
 
       {/* Threat Chart */}
-      <div className="bg-black border border-green-900 rounded-sm p-8 mb-12 shadow-2xl">
-        <div className="flex justify-between items-center mb-6">
+      <div className="bg-black border border-green-900 rounded-sm p-4 md:p-8 mb-8 md:mb-12 shadow-2xl">
+        <div className="flex flex-col md:flex-row md:justify-between md:items-center mb-4 md:mb-6 gap-4">
           <div>
             <h3 className="text-xs font-black text-green-800 uppercase flex items-center gap-3 italic tracking-widest mb-2">
               <Activity className="w-4 h-4 text-green-500" /> Vulnerability Trends
@@ -240,17 +240,17 @@ export default function Dashboard() {
               </div>
             )}
           </div>
-          <div className="flex border border-green-900 p-1 rounded-sm bg-black">
+          <div className="grid grid-cols-4 gap-1 border border-green-900 p-1 rounded-sm bg-black">
             {['1w', '1m', '1y', '5y'].map((r) => (
-              <button key={r} onClick={() => setTimeRange(r)} className={`px-3 py-1 text-[9px] font-black transition-all ${timeRange === r ? 'bg-green-500 text-black' : 'text-green-900 hover:text-green-400'}`}>
+              <button key={r} onClick={() => setTimeRange(r)} className={`px-2 md:px-3 py-1 text-[9px] font-black transition-all ${timeRange === r ? 'bg-green-500 text-black' : 'text-green-900 hover:text-green-400'}`}>
                 {r.toUpperCase()}
               </button>
             ))}
           </div>
         </div>
-        <div className="h-[350px] w-full font-sans text-xs">
+        <div className="h-[200px] md:h-[350px] w-full font-sans text-xs">
           <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={chartData}>
+            <AreaChart data={chartData} margin={{ top: 5, right: 5, bottom: 5, left: -20 }}>
               <defs>
                 <linearGradient id="neon" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor="#22c55e" stopOpacity={0.2}/><stop offset="95%" stopColor="#22c55e" stopOpacity={0}/>
@@ -290,8 +290,8 @@ export default function Dashboard() {
 
       {/* Main Alerts Feed */}
       <div className="bg-black border border-green-900 rounded-sm shadow-2xl overflow-hidden">
-        <div className="p-6 border-b border-green-900 flex flex-col md:flex-row justify-between items-center bg-green-950/10 gap-4">
-          <h2 className="text-sm font-black text-green-400 italic uppercase">Recent CVE Alerts</h2>
+        <div className="p-4 md:p-6 border-b border-green-900 flex flex-col md:flex-row justify-between items-center bg-green-950/10 gap-4">
+          <h2 className="text-sm font-black text-green-400 italic uppercase w-full md:w-auto">Recent CVE Alerts</h2>
           <div className="relative w-full md:w-96 group">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-green-900 group-focus-within:text-green-400" />
             <input 
@@ -306,33 +306,33 @@ export default function Dashboard() {
           <table className="w-full text-left">
             <thead>
               <tr className="text-[10px] text-green-800 uppercase border-b border-green-900/50 bg-green-900/5 font-black tracking-widest">
-                <th className="p-6">CVE ID</th>
-                <th className="p-6 text-center">Severity</th>
-                <th className="p-6 text-center">CVSS</th>
-                <th className="p-6">Products</th>
-                <th className="p-6">Description</th>
-                <th className="p-6 text-right">Published</th>
+                <th className="p-3 md:p-6">CVE ID</th>
+                <th className="p-3 md:p-6 text-center">Severity</th>
+                <th className="p-3 md:p-6 text-center">CVSS</th>
+                <th className="p-3 md:p-6 hidden sm:table-cell">Products</th>
+                <th className="p-3 md:p-6 hidden lg:table-cell">Description</th>
+                <th className="p-3 md:p-6 text-right">Published</th>
               </tr>
             </thead>
             <tbody className="text-xs">
               {cvesLoading ? (
-                <tr><td colSpan={6} className="py-24 text-center text-green-900 animate-pulse font-black uppercase tracking-widest">Loading...</td></tr>
+                <tr><td colSpan={6} className="py-12 md:py-24 text-center text-green-900 animate-pulse font-black uppercase tracking-widest">Loading...</td></tr>
               ) : cveError ? (
-                <tr><td colSpan={6} className="py-24 text-center text-red-500 font-black italic uppercase">Load Error</td></tr>
+                <tr><td colSpan={6} className="py-12 md:py-24 text-center text-red-500 font-black italic uppercase">Load Error</td></tr>
               ) : cveData?.data?.map((cve: any) => (
                 <tr key={cve.id} onClick={() => setSelectedCVE(cve.id)} className="border-b border-green-900/20 hover:bg-green-400/5 transition-all cursor-pointer group">
-                  <td className="p-6 font-bold text-green-400 font-mono tracking-tighter group-hover:text-green-100 uppercase">{cve.source_uid}</td>
-                  <td className="p-6 text-center"><StatusBadge severity={cve.severity} /></td>
-                  <td className="p-6 text-center"><CVSSScore score={cve.cvss_score} /></td>
-                  <td className="p-6 max-w-[180px]">
+                  <td className="p-3 md:p-6 font-bold text-green-400 font-mono tracking-tighter group-hover:text-green-100 uppercase text-[10px] md:text-xs">{cve.source_uid}</td>
+                  <td className="p-3 md:p-6 text-center"><StatusBadge severity={cve.severity} /></td>
+                  <td className="p-3 md:p-6 text-center"><CVSSScore score={cve.cvss_score} /></td>
+                  <td className="p-3 md:p-6 max-w-[180px] hidden sm:table-cell">
                     <div className="flex flex-wrap gap-1">
                       {cve.assets ? cve.assets.split(', ').slice(0, 2).map((a: string, i: number) => (
                         <span key={i} className="text-[8px] bg-green-900/10 text-green-700 px-1 border border-green-900/20 uppercase font-bold font-sans">{a}</span>
                       )) : <span className="text-[8px] text-green-950 italic uppercase">None</span>}
                     </div>
                   </td>
-                  <td className="p-6 max-w-md truncate text-green-100/60 group-hover:text-green-100 font-sans italic opacity-80">{cve.title || cve.description}</td>
-                  <td className="p-6 text-right text-green-900 font-mono text-[10px] uppercase">{safeFormatDate(cve.published_at)}</td>
+                  <td className="p-3 md:p-6 max-w-md truncate text-green-100/60 group-hover:text-green-100 font-sans italic opacity-80 hidden lg:table-cell">{cve.title || cve.description}</td>
+                  <td className="p-3 md:p-6 text-right text-green-900 font-mono text-[10px] uppercase">{safeFormatDate(cve.published_at)}</td>
                 </tr>
               ))}
             </tbody>
