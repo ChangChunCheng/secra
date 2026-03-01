@@ -17,14 +17,15 @@ type User struct {
 	Role               string    `bun:"role,notnull,default:'user'" json:"role"`
 	Status             string    `bun:"status,notnull,default:'active'" json:"status"`
 	MustChangePassword bool      `bun:"must_change_password,default:false" json:"must_change_password"`
-	
+
 	// Preferences
 	NotificationFrequency string    `bun:"notification_frequency,default:'daily'" json:"notification_frequency"`
+	NotificationTime      string    `bun:"notification_time,default:'09:00'" json:"notification_time"`
 	Timezone              string    `bun:"timezone,default:'UTC'" json:"timezone"`
 	LastNotifiedAt        time.Time `bun:"last_notified_at" json:"last_notified_at"`
 
-	OAuthProvider      *string   `bun:"oauth_provider" json:"oauth_provider,omitempty"`
-	OAuthID            *string   `bun:"oauth_id" json:"oauth_id,omitempty"`
-	CreatedAt          time.Time `bun:"created_at,nullzero,notnull,default:now()" json:"created_at"`
-	UpdatedAt          time.Time `bun:"updated_at,nullzero,notnull,default:now()" json:"updated_at"`
+	OAuthProvider *string   `bun:"oauth_provider" json:"oauth_provider,omitempty"`
+	OAuthID       *string   `bun:"oauth_id" json:"oauth_id,omitempty"`
+	CreatedAt     time.Time `bun:"created_at,nullzero,notnull,default:now()" json:"created_at"`
+	UpdatedAt     time.Time `bun:"updated_at,nullzero,notnull,default:now()" json:"updated_at"`
 }

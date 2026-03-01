@@ -4,7 +4,10 @@ SECRA is a high-performance security vulnerability aggregation and subscription 
 
 > **Note:** This project is autonomously developed and maintained by a human developer commanding a **Gemini-based AI Agent**. Every line of code, architecture decision, and documentation was executed by the agent under strategic human direction.
 
-## 🚀 Core Features (v0.0.1-alpha2)
+## 🚀 Core Features (v0.0.2-alpha)
+
+- **Modernized Frontend-Backend Separation**: Next.js SPA frontend with Go REST API backend.
+- **Type-Safe API**: TypeScript types generated from Protobuf definitions.
 
 - **Unified Monolith Architecture**: Both HTTP (8081) and gRPC (50051) servers run within a single container, sharing a unified resource pool for maximum efficiency.
 - **Precise Asset Subscriptions**: Multi-dimensional subscription support for Vendors and Products.
@@ -23,10 +26,15 @@ cp template.env .env
 ```
 
 ### 2. Launch System
-Deploy the consolidated server using Makefile:
+Deploy the full stack using Docker Compose:
 ```bash
 make docker-up
 ```
+
+**Access Points:**
+- **Frontend (Web UI)**: http://localhost (Port 80)
+- **Backend API**: http://localhost:8081/api/v1/*
+- **gRPC**: localhost:50051
 
 ### 3. Initialize Database
 Run migrations to set up the latest schema:
@@ -55,8 +63,10 @@ docker compose exec server secra user create -u admin -e admin@secra.local -p yo
 - `/cmd/server`: Unified server entry point (Consolidated HTTP + gRPC).
 - `/cmd/cli`: System management and data ingestion tools (NVD Fetcher).
 - `/internal/service`: Core business logic (Notifications, Subscriptions, Auth).
+- `/internal/api/web`: RESTful API handlers for frontend communication.
+- `/frontend`: Modern Next.js frontend with React, Redux Toolkit, and TailwindCSS.
+- `/api`: Protobuf definitions for gRPC services and TypeScript generation.
 - `/scripts`: Automated maintenance and DevOps scripts.
-- `/web`: Modern UI built with Vanilla CSS and Go Templates.
 
 ## 🧪 Testing Notifications
 Trigger a batch import to verify subscription matching and email aggregation:

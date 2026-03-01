@@ -8,8 +8,10 @@ option go_package = "gitlab.com/jacky850509/secra/api/gen/v1;secra_v1";
 
 message Product {
   string id = 1;
-  string name = 2;
-  string vendor_id = 3;
+  string vendor_id = 2;
+  string vendor_name = 3;
+  string name = 4;
+  string subscription_id = 5; // If logged in
 }
 
 message CreateProductRequest {

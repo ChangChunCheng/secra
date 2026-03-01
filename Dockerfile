@@ -32,7 +32,6 @@ FROM gcr.io/distroless/static-debian12:latest
 WORKDIR /app
 COPY --from=builder /app/secra-server .
 COPY --from=builder /app/secra /usr/local/bin/secra
-COPY --from=builder /app/web ./web
 COPY --from=builder /app/migrations ./migrations
 
 # Expose both Ports

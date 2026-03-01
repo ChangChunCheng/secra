@@ -66,23 +66,38 @@ var v2Nvd = &cobra.Command{
 			return
 		}
 
+		// Collect all imported CVEs for batch notification
+		allImportedCVEs := []model.CVE{}
+
 		for _, gap := range gaps {
 			log.Printf("📅 Processing optimized gap: %s to %s", gap.start.Format(time.DateOnly), gap.end.Format(time.DateOnly))
 			chunkSize := 30 * 24 * time.Hour
 			for currentStart := gap.start; currentStart.Before(gap.end); {
 				currentEnd := currentStart.Add(chunkSize)
-				if currentEnd.After(gap.end) { currentEnd = gap.end }
-				ImportNvdv2Chunk(cmd.Context(), db.DB, cfg, currentStart, currentEnd)
+				if currentEnd.After(gap.end) {
+					currentEnd = gap.end
+				}
+				importedCVEs := ImportNvdv2Chunk(cmd.Context(), db.DB, cfg, currentStart, currentEnd)
+				allImportedCVEs = append(allImportedCVEs, importedCVEs...)
 				currentStart = currentEnd
 			}
 		}
+
+		// Send ONE notification with all imported CVEs
+		if len(allImportedCVEs) > 0 {
+			log.Printf("📧 Sending consolidated notification for %d CVEs...", len(allImportedCVEs))
+			importer.NotifyBatch(db.DB, allImportedCVEs)
+		}
+
 		log.Println("✅ All requested intervals processed.")
 	},
 }
 
 func waitThrottle(cfg *config.AppConfig) {
 	delay := 6 * time.Second
-	if apiKey != "" || cfg.NvdAPIKey != "" { delay = 1 * time.Second }
+	if apiKey != "" || cfg.NvdAPIKey != "" {
+		delay = 1 * time.Second
+	}
 	elapsed := time.Since(lastReqAt)
 	if elapsed < delay {
 		wait := delay - elapsed
@@ -93,14 +108,18 @@ func waitThrottle(cfg *config.AppConfig) {
 }
 
 func findMissingIntervals(ctx context.Context, db *bun.DB, start, end time.Time) []interval {
-	type DateRow struct { Day time.Time `bun:"day"` }
+	type DateRow struct {
+		Day time.Time `bun:"day"`
+	}
 	var existingDates []DateRow
 	db.NewSelect().Table("cves").ColumnExpr("published_at::date as day").
 		Where("published_at >= ? AND published_at <= ?", start, end).
 		Group("day").Order("day ASC").Scan(ctx, &existingDates)
 
 	dateMap := make(map[string]bool)
-	for _, d := range existingDates { dateMap[d.Day.Format(time.DateOnly)] = true }
+	for _, d := range existingDates {
+		dateMap[d.Day.Format(time.DateOnly)] = true
+	}
 
 	var gaps []interval
 	var currentGap *interval
@@ -108,15 +127,22 @@ func findMissingIntervals(ctx context.Context, db *bun.DB, start, end time.Time)
 	for current := start; !current.After(end); current = current.AddDate(0, 0, 1) {
 		dayStr := current.Format(time.DateOnly)
 		if !dateMap[dayStr] {
-			if currentGap == nil { currentGap = &interval{start: current} }
+			if currentGap == nil {
+				currentGap = &interval{start: current}
+			}
 			currentGap.end = current.AddDate(0, 0, 1)
 		} else {
 			if currentGap != nil {
 				hasHoleSoon := false
 				for lookAhead := 1; lookAhead <= 7; lookAhead++ {
 					checkDay := current.AddDate(0, 0, lookAhead)
-					if checkDay.After(end) { break }
-					if !dateMap[checkDay.Format(time.DateOnly)] { hasHoleSoon = true; break }
+					if checkDay.After(end) {
+						break
+					}
+					if !dateMap[checkDay.Format(time.DateOnly)] {
+						hasHoleSoon = true
+						break
+					}
 				}
 				if !hasHoleSoon {
 					gaps = append(gaps, *currentGap)
@@ -125,15 +151,20 @@ func findMissingIntervals(ctx context.Context, db *bun.DB, start, end time.Time)
 			}
 		}
 	}
-	if currentGap != nil { gaps = append(gaps, *currentGap) }
+	if currentGap != nil {
+		gaps = append(gaps, *currentGap)
+	}
 	return gaps
 }
 
-func ImportNvdv2Chunk(ctx context.Context, db *bun.DB, cfg *config.AppConfig, start, end time.Time) {
+func ImportNvdv2Chunk(ctx context.Context, db *bun.DB, cfg *config.AppConfig, start, end time.Time) []model.CVE {
 	pageSize := 2000
 	startIndex := 0
 	sourceID := util.SourceID("nvd-v2")
 	source, _ := ensureCveSourceWithID(db, sourceID, "nvd-v2", "NVD v2 API", cfg.NvdURLv2)
+
+	// Collect all CVEs imported in this chunk
+	allChunkCVEs := []model.CVE{}
 
 	for {
 		waitThrottle(cfg)
@@ -141,17 +172,25 @@ func ImportNvdv2Chunk(ctx context.Context, db *bun.DB, cfg *config.AppConfig, st
 			PubStartDate: start, PubEndDate: end, StartIndex: startIndex, ResultsPerPage: pageSize,
 			ApiKey: apiKey, MaxRetries: cfg.NvdMaxRetries, RetryDelay: cfg.NvdRetryDelay,
 		})
-		if err != nil { return }
+		if err != nil {
+			return allChunkCVEs
+		}
 
 		var feed nvd_v2_parser.Nvdv2CveFeed
-		if err := json.Unmarshal(data, &feed); err != nil { return }
-		if len(feed.Vulnerabilities) == 0 { break }
+		if err := json.Unmarshal(data, &feed); err != nil {
+			return allChunkCVEs
+		}
+		if len(feed.Vulnerabilities) == 0 {
+			break
+		}
 
 		cves, _ := nvd_v2_parser.ConvertToCVEsFromV2(&feed)
 		v, p, rel, ref, w := nvd_v2_parser.ExtractAllFromV2(&feed)
-		
+
 		cveMap := make(map[string]string)
-		for _, c := range cves { cveMap[c.SourceUID] = c.ID }
+		for _, c := range cves {
+			cveMap[c.SourceUID] = c.ID
+		}
 
 		// STEP 1: Import CVEs FIRST (to satisfy Foreign Keys)
 		importer.ImportCVEs(db, source.ID, cves)
@@ -161,19 +200,25 @@ func ImportNvdv2Chunk(ctx context.Context, db *bun.DB, cfg *config.AppConfig, st
 		importer.ImportReferences(db, ref, cveMap)
 		importer.ImportWeaknesses(db, w, cveMap)
 
-		// STEP 3: Trigger batch notifications (Now relations are 100% complete)
-		importer.NotifyBatch(db, cves)
+		// Collect CVEs (notifications will be sent after all chunks complete)
+		allChunkCVEs = append(allChunkCVEs, cves...)
 
 		startIndex += len(feed.Vulnerabilities)
-		if startIndex >= feed.TotalResults { break }
+		if startIndex >= feed.TotalResults {
+			break
+		}
 	}
+
+	return allChunkCVEs
 }
 
 func ensureCveSourceWithID(db *bun.DB, id, name, description, url string) (*model.CVESource, error) {
 	ctx := context.Background()
 	source := new(model.CVESource)
 	err := db.NewSelect().Model(source).Where("id = ?", id).Scan(ctx)
-	if err == nil { return source, nil }
+	if err == nil {
+		return source, nil
+	}
 
 	source = &model.CVESource{ID: id, Name: name, Type: "nvd", URL: url, Description: description, Enabled: true}
 	_, err = db.NewInsert().Model(source).Exec(ctx)

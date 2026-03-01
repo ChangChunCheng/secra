@@ -23,7 +23,7 @@ type UserServicer interface {
 	OAuthLogin(ctx context.Context, provider, providerUserID, email string) (*model.User, error)
 	Login(ctx context.Context, username, password string) (string, int64, error)
 	GetProfile(ctx context.Context, token string) (*model.User, error)
-	UpdateProfile(ctx context.Context, token, email, password, confirmPassword, frequency, timezone string) (*model.User, error)
+	UpdateProfile(ctx context.Context, token, email, password, confirmPassword, frequency, notificationTime, timezone string) (*model.User, error)
 }
 
 // ensure UserService implements UserServicer
@@ -170,7 +170,7 @@ func (s *UserService) GetProfile(ctx context.Context, token string) (*model.User
 	return s.repo.FindByID(ctx, secret.ID.String())
 }
 
-func (s *UserService) UpdateProfile(ctx context.Context, token, email, password, confirmPassword, frequency, timezone string) (*model.User, error) {
+func (s *UserService) UpdateProfile(ctx context.Context, token, email, password, confirmPassword, frequency, notificationTime, timezone string) (*model.User, error) {
 	passwordHash, err := s.CheckPassword(password, confirmPassword)
 	if err != nil {
 		return nil, err
@@ -179,20 +179,35 @@ func (s *UserService) UpdateProfile(ctx context.Context, token, email, password,
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Update extended fields
 	u, err := s.repo.FindByID(ctx, secret.ID.String())
-	if err != nil { return nil, err }
-	
-	u.Email = email
-	if *passwordHash != "" { u.PasswordHash = *passwordHash }
-	u.NotificationFrequency = frequency
-	u.Timezone = timezone
+	if err != nil {
+		return nil, err
+	}
+
+	if email != "" {
+		u.Email = email
+	}
+	if *passwordHash != "" {
+		u.PasswordHash = *passwordHash
+	}
+	if frequency != "" {
+		u.NotificationFrequency = frequency
+	}
+	if notificationTime != "" {
+		u.NotificationTime = notificationTime
+	}
+	if timezone != "" {
+		u.Timezone = timezone
+	}
 	u.UpdatedAt = time.Now()
 
 	// Update in DB (Repo needs to handle these columns)
 	err = s.repo.UpdateFullProfile(ctx, u)
-	if err != nil { return nil, err }
+	if err != nil {
+		return nil, err
+	}
 
 	return u, nil
 }

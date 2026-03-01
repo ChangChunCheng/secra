@@ -41,7 +41,7 @@ func (r *UserRepository) FindByID(ctx context.Context, id string) (*model.User, 
 
 func (r *UserRepository) UpdateFullProfile(ctx context.Context, u *model.User) error {
 	_, err := r.db.NewUpdate().Model(u).
-		Column("email", "password_hash", "notification_frequency", "timezone", "updated_at").
+		Column("email", "password_hash", "notification_frequency", "notification_time", "timezone", "updated_at").
 		WherePK().
 		Exec(ctx)
 	return err
@@ -54,6 +54,8 @@ func (r *UserRepository) UpdateEmailAndPassword(ctx context.Context, userID, ema
 		Column("email", "password_hash", "updated_at").
 		WherePK().
 		Exec(ctx)
-	if err != nil { return nil, err }
+	if err != nil {
+		return nil, err
+	}
 	return r.FindByID(ctx, userID)
 }

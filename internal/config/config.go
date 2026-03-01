@@ -45,6 +45,10 @@ type AppConfig struct {
 	NvdMaxRetries int
 	NvdRetryDelay time.Duration
 	NvdAPIKey     string
+
+	// Default Admin User
+	DefaultAdminUsername string
+	DefaultAdminPassword string
 }
 
 func Load() *AppConfig {
@@ -75,6 +79,9 @@ func Load() *AppConfig {
 		NvdMaxRetries: maxRetries,
 		NvdRetryDelay: time.Duration(retryDelaySec) * time.Second,
 		NvdAPIKey:     getEnv("NVD_API_KEY", ""),
+
+		DefaultAdminUsername: getEnv("SECRA_ADMIN_USER", "admin"),
+		DefaultAdminPassword: getEnv("SECRA_ADMIN_PWD", "admin"),
 	}
 }
 

@@ -51,7 +51,7 @@ func (h *Handler) GetProfile(ctx context.Context, req *userv1.TokenRequest) (*us
 }
 
 func (h *Handler) UpdateProfile(ctx context.Context, req *userv1.UpdateProfileRequest) (*userv1.UserProfile, error) {
-	user, err := h.userService.UpdateProfile(ctx, req.Token, req.Email, req.Password, req.ConfirmPassword, "daily", "UTC")
+	user, err := h.userService.UpdateProfile(ctx, req.Token, req.Email, req.Password, req.ConfirmPassword, "daily", "09:00", "UTC")
 	if err != nil {
 		return nil, err
 	}

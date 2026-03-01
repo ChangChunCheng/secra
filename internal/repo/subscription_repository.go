@@ -42,7 +42,11 @@ func (r *SubscriptionRepository) CreateSubscription(ctx context.Context, sub *mo
 
 func (r *SubscriptionRepository) GetSubscriptionsByUser(ctx context.Context, userID string) ([]model.Subscription, error) {
 	var subs []model.Subscription
-	err := r.db.NewSelect().Model(&subs).Where("user_id = ?", userID).Scan(ctx)
+	err := r.db.NewSelect().
+		Model(&subs).
+		Where("user_id = ?", userID).
+		Relation("Targets").
+		Scan(ctx)
 	return subs, err
 }
 

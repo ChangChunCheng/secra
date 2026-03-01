@@ -4,11 +4,13 @@ package secra.v1;
 
 import "google/protobuf/empty.proto";
 
-option go_package = "gitlab.com/jacky850509/secra/gen/v1;secra_v1";
+option go_package = "gitlab.com/jacky850509/secra/api/gen/v1;secra_v1";
 
 message Vendor {
   string id = 1;
   string name = 2;
+  int32 product_count = 3;
+  string subscription_id = 4; // If logged in
 }
 
 message CreateVendorRequest {

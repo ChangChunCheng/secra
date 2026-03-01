@@ -5,6 +5,6 @@ import "github.com/uptrace/bun"
 type Vendor struct {
 	bun.BaseModel `bun:"table:vendors"`
 
-	ID   string `bun:",pk,notnull"`
-	Name string `bun:",notnull,unique"`
+	ID   string `bun:",pk,notnull" json:"id"`
+	Name string `bun:",notnull,unique" json:"name"`
 }

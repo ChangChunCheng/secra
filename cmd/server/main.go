@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"net"
 	"net/http"
@@ -28,6 +29,9 @@ func main() {
 	db := storage.NewDB(cfg.PostgresDSN, true)
 	defer db.Close()
 
+	// Initialize default admin user if not exists
+	initializeDefaultAdmin(db, cfg)
+
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
@@ -36,13 +40,13 @@ func main() {
 	if strings.Contains(grpcAddr, "127.0.0.1") {
 		grpcAddr = ":" + strings.Split(grpcAddr, ":")[1]
 	}
-	
+
 	grpcListener, err := net.Listen("tcp", grpcAddr)
 	if err != nil {
 		log.Fatalf("❌ Failed to listen on gRPC port %s: %v", grpcAddr, err)
 	}
 	grpcSrv := grpc.NewServer()
-	
+
 	healthSrv := health.NewServer()
 	grpc_health_v1.RegisterHealthServer(grpcSrv, healthSrv)
 	healthSrv.SetServingStatus("", grpc_health_v1.HealthCheckResponse_SERVING)
@@ -82,6 +86,42 @@ func main() {
 		log.Printf("⚠️ HTTP shutdown error: %v", err)
 	}
 	grpcSrv.GracefulStop()
+	log.Println("✅ Shutdown complete")
+}
 
-	log.Println("✅ Servers exited gracefully")
+func initializeDefaultAdmin(db *storage.DBWrapper, cfg *config.AppConfig) {
+	ctx := context.Background()
+
+	// Check if any user exists
+	var count int
+	err := db.DB.NewSelect().Table("users").ColumnExpr("COUNT(*)").Scan(ctx, &count)
+	if err != nil {
+		log.Printf("⚠️  Failed to check existing users: %v", err)
+		return
+	}
+
+	if count > 0 {
+		return // Users already exist, skip initialization
+	}
+
+	// Create default admin user
+	log.Printf("📝 Creating default admin user: %s", cfg.DefaultAdminUsername)
+
+	email := cfg.DefaultAdminUsername + "@secra.local"
+
+	// Use Bun's raw query for SQL functions
+	query := fmt.Sprintf(`
+		INSERT INTO users (id, username, email, password_hash, role, status, must_change_password, created_at, updated_at)
+		VALUES (gen_random_uuid(), '%s', '%s', crypt('%s', gen_salt('bf')), 'admin', 'active', false, now(), now())
+	`, cfg.DefaultAdminUsername, email, cfg.DefaultAdminPassword)
+
+	_, err = db.DB.ExecContext(ctx, query)
+
+	if err != nil {
+		log.Printf("⚠️  Failed to create default admin user: %v", err)
+		log.Printf("💡 You can create an admin user manually via /register endpoint")
+	} else {
+		log.Printf("✅ Default admin user '%s' created successfully", cfg.DefaultAdminUsername)
+		log.Printf("🔑 Username: %s, Password: %s", cfg.DefaultAdminUsername, cfg.DefaultAdminPassword)
+	}
 }
