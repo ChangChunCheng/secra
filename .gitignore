@@ -39,9 +39,11 @@ Thumbs.db
 .env
 .env.*
 
-# Compiled proto files
-api/gen/**/*.pb.go
-api/gen/**/*.swagger.json
+# Generated protobuf files (backend)
+api/gen/
+
+# Generated protobuf files (frontend)
+frontend/src/lib/gen/
 
 # Database
 data/

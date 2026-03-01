@@ -1,28 +1,47 @@
-# Stage 1: Build the React application
+# Stage 0: Generate TypeScript types from Protobuf using buf image
+FROM bufbuild/buf:latest AS proto-gen
+WORKDIR /workspace
+COPY api ./api
+WORKDIR /workspace/api
+RUN buf generate --template buf.gen.yaml
+
+# Stage 1: Build the Next.js application
 FROM node:20-alpine AS builder
 WORKDIR /app
-COPY package*.json ./
+
+# Copy package files and install dependencies
+COPY frontend/package*.json ./
 RUN npm install
-COPY . .
-# Build and export to /app/out
+
+# Copy frontend source code
+COPY frontend .
+
+# Copy generated protobuf types from proto-gen stage
+COPY --from=proto-gen /workspace/frontend/src/lib/gen ./src/lib/gen
+
+# Set build-time environment variable
+ARG NEXT_PUBLIC_API_URL=/api/v1
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+ENV SKIP_PROTO_GEN=true
+
+# Build the Next.js app (skip prebuild proto generation, already done in stage 0)
 RUN npm run build
 
 # Stage 2: Serve static files AND proxy API via Nginx
 FROM nginx:alpine
 COPY --from=builder /app/out /usr/share/nginx/html
 
-# Unified Nginx Configuration: Static Files + API Proxy
+# Unified Nginx Configuration
 RUN echo 'server { \
     listen 80; \
     server_name localhost; \
     \
-    # Frontend - Static Files \
     location / { \
         root /usr/share/nginx/html; \
         try_files $uri $uri.html /index.html; \
     } \
     \
-    # Backend API Proxy - Forward to Go Server \
+    # API Proxy: Explicitly forward to backend on 8080 \
     location /api/ { \
         proxy_pass http://server:8080; \
         proxy_set_header Host $host; \

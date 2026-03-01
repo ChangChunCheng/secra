@@ -17,6 +17,7 @@ message CVE {
   string status = 8;
   string published_at = 9;
   string updated_at = 10;
+  string assets = 11; // Aggregated assets for display
 }
 
 message CreateCVERequest {

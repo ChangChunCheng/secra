@@ -17,3 +17,10 @@ plugins:
     out: gen
     opt:
       - generate_unbound_methods=true
+  - plugin: buf.build/community/stephenh-ts-proto:v2.11.4
+    out: ../frontend/src/lib/gen
+    opt:
+      - esModuleInterop=true
+      - forceLong=string
+      - env=browser
+      - onlyTypes=true

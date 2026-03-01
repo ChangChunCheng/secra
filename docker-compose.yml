@@ -19,6 +19,7 @@ services:
   server:
     build:
       context: .
+      dockerfile: backend/Dockerfile
       args:
         VERSION: "${APP_VERSION:-dev}"
         BUILD_DATE: "${BUILD_DATE:-unknown}"
@@ -30,7 +31,7 @@ services:
         condition: service_healthy
     ports:
       - "50051:50051" # gRPC
-      - "8081:8080"   # Template Engine / API Direct Access
+      - "8081:8080"   # REST API
     env_file:
       - .env
     environment:
@@ -45,7 +46,8 @@ services:
 
   frontend:
     build:
-      context: ./frontend
+      context: .
+      dockerfile: frontend/Dockerfile
     container_name: secra-frontend
     ports:
       - "80:80" # Unified Entry Point
