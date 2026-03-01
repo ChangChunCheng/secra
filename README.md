@@ -1,70 +1,68 @@
-# SECRA - Vulnerability Intelligence Platform
+# SECRA (Security Resource Aggregator)
 
-> **Important Notice:** This entire project was developed and maintained exclusively by **AI Agents**.
+SECRA is a high-performance security vulnerability aggregation and subscription platform. It is designed to provide real-time, precise CVE monitoring and automated notification services for enterprises and developers.
 
-SECRA is a high-performance, containerized CVE vulnerability platform featuring smart NVD synchronization, a Cyberpunk-styled Web UI, and columnar backup/restore capabilities.
+> **Note:** This project is autonomously developed and maintained by a human developer commanding a **Gemini-based AI Agent**. Every line of code, architecture decision, and documentation was executed by the agent under strategic human direction.
 
----
+## 🚀 Core Features (v0.0.1-alpha2)
 
-## 🛠 Deployment Guide
+- **Unified Monolith Architecture**: Both HTTP (8081) and gRPC (50051) servers run within a single container, sharing a unified resource pool for maximum efficiency.
+- **Precise Asset Subscriptions**: Multi-dimensional subscription support for Vendors and Products.
+- **Intelligent Notification Engine**:
+  - **Batch Aggregation**: Prevents inbox flooding by consolidating large batches of new CVEs into a single, comprehensive alert email.
+  - **Scheduled Digests**: Supports timezone-aware digests sent at user-defined intervals (e.g., daily at 08:00 AM local time).
+- **Timezone Awareness**: Full support for localized timezones in both the Web UI and notification scheduling.
+- **Deterministic Stability**: Global stable ordering across all asset and vulnerability lists to ensure a consistent user experience.
 
-### Prerequisites
-- **Git**: Used for version tracking and build labeling.
-- **Docker & Docker Compose**: For containerized execution.
-- **Make**: To manage the unified build and deployment workflow.
+## 🛠️ Quick Start
 
-### 1. Environment Setup
-Copy the template and configure your environment variables:
+### 1. Configuration
+Clone the template and configure your SMTP/Database settings:
 ```bash
 cp template.env .env
 ```
-Key variables in `.env`:
-- `NVD_API_KEY`: (Optional) Highly recommended to increase rate limits (from 6s per request to 1s).
-- `JWT_SECRET`: Used for user session authentication.
-- `POSTGRES_DSN`: Should match the settings in `docker-compose.yml`.
 
-### 2. Launch the System
-Use the Makefile to ensure Git metadata is correctly injected into the containers:
+### 2. Launch System
+Deploy the consolidated server using Makefile:
 ```bash
 make docker-up
 ```
-*Note: This command captures your host's Git tags, commit hash, and hostname to bake them into the `secra` binary.*
 
 ### 3. Initialize Database
-Once the containers are running, apply the schema migrations:
+Run migrations to set up the latest schema:
 ```bash
-docker compose exec web secra migrate up
+make migrate-up
 ```
 
-### 4. Fetch Initial Data
-Pull vulnerability data from NVD (example for Jan 2024):
+### 4. Create Admin Account
 ```bash
-docker compose exec web secra import nvd v2 --start 2024-01-01 --end 2024-01-31
+docker compose exec server secra user create -u admin -e admin@secra.local -p yourpassword --admin
 ```
 
----
+## 📈 Operations (Makefile)
 
-## 📊 Management Commands
-
-### Operations
 | Command | Description |
-|---------|-------------|
-| `make docker-up` | Build and start all services with Git metadata |
-| `make docker-down` | Stop all services |
-| `./backup.sh <dir>` | Create a Parquet-based backup with auto-versioning |
-| `./restore.sh <file>` | Restore data from a backup (supports ID migration) |
-| `docker compose exec web secra version` | Check detailed build & version info |
+| :--- | :--- |
+| `make help` | Show all available maintenance commands |
+| `make build` | Build binaries locally for testing |
+| `make docker-up` | Build and launch the Monolith server in Docker |
+| `make migrate-up` | Execute pending database migrations |
+| `make backup` | Execute full system backup (Optional: `OUT=./path`) |
+| `make restore` | Restore system from backup (`FILE=path/to/file`) |
 
-### Accessing the UI
-The Cyberpunk Dashboard is available at: **http://localhost:8081**
+## 📁 Project Structure
 
----
+- `/cmd/server`: Unified server entry point (Consolidated HTTP + gRPC).
+- `/cmd/cli`: System management and data ingestion tools (NVD Fetcher).
+- `/internal/service`: Core business logic (Notifications, Subscriptions, Auth).
+- `/scripts`: Automated maintenance and DevOps scripts.
+- `/web`: Modern UI built with Vanilla CSS and Go Templates.
 
-## 🛠 Development Guidelines
-For detailed information on branching, commit messages, and release cycles, please refer to:
-**[Git Workflow & Standards](docs/GIT_WORKFLOW.md)**
+## 🧪 Testing Notifications
+Trigger a batch import to verify subscription matching and email aggregation:
+```bash
+docker compose exec server secra import nvd v2 --start 2024-01-09 --end 2024-01-10 -f
+```
 
----
-
-## 🛡 License
-Licensed under the **GNU Affero General Public License v3.0 (AGPL-3.0)**. See [LICENSE](LICENSE) for details.
+## 📄 License
+[LICENSE](LICENSE)

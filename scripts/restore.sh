@@ -1,11 +1,11 @@
 #!/bin/bash
 
 # Secra Restore Script
-# Usage: ./restore.sh <backup_file.tar.gz>
+# Usage: ./scripts/restore.sh <backup_file.tar.gz>
 
 set -e
 
-CONTAINER_NAME="secra-web"
+CONTAINER_NAME="secra-server"
 BACKUP_FILE=$1
 
 if [ -z "$BACKUP_FILE" ]; then
@@ -31,6 +31,6 @@ echo "🚚 Transferring backup to container..."
 docker cp "$BACKUP_FILE" "${CONTAINER_NAME}:${TMP_PATH}"
 
 echo "📥 Starting restoration and migration..."
-docker compose exec web secra backup restore "${TMP_PATH}"
+docker compose exec server secra backup restore "${TMP_PATH}"
 
 echo "✅ Restoration successful!"
