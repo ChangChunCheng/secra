@@ -41,6 +41,9 @@ services:
     environment:
       # PostgreSQL connection is auto-constructed from POSTGRES_* variables
       - POSTGRES_HOST=db
+      - POSTGRES_USER=${POSTGRES_USER:-postgres}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}
+      - POSTGRES_DB=${POSTGRES_DB:-secra}
       - GRPC_PORT=:50051
       - HTTP_PORT=:8080
     healthcheck:
