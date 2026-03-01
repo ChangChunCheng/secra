@@ -175,8 +175,172 @@ secra migrate status
 # Data import
 secra import nvd v2 --start 2024-01-01 --end 2024-01-31
 
+# Backup & Restore
+secra backup create -o /path/to/backup.tar.gz
+secra backup restore /path/to/backup.tar.gz
+
 # Health check
 secra health check --type http
+
+# Version
+secra version
+secra version --raw  # Returns version string only
+```
+
+## 💾 Backup & Restore
+
+### Overview
+
+The backup/restore system uses **Parquet format** for efficient storage and supports **UUID v5 migration** for data consistency.
+
+**Backed up data includes:**
+- CVE Sources (`cve_sources`)
+- Vendors & Products (`vendors`, `products`)
+- CVEs & Relations (`cves`, `cve_products`)
+- Users & Subscriptions (`users`, `subscriptions`)
+
+### Creating Backups
+
+**Recommended: Using CLI with auto-generated filename**
+
+```bash
+# Auto-generate filename (secra_<version>_<timestamp>.tar.gz) in container
+docker compose exec server secra backup create -d /tmp
+
+# Copy to host
+docker cp secra-server:/tmp/secra_v0.0.2-alpha_20260301_143022.tar.gz ./backups/
+```
+
+**Alternative: Using mounted volume (recommended for production)**
+
+```bash
+# Add volume mount in docker-compose.yml:
+# volumes:
+#   - ./backups:/backups:rw
+
+# Then backup directly to host directory
+docker compose exec server secra backup create -d /backups
+# Files appear immediately in ./backups/ on host
+```
+
+**Local Development (without Docker)**
+
+```bash
+cd backend
+./bin/secra backup create -d ./backups
+# Output: ./backups/secra_dev_20260301_143022.tar.gz
+```
+
+**Features:**
+- ✅ Auto-generated filename with version and timestamp
+- ✅ Auto-creates output directory if missing
+- ✅ Custom path with `-o` or directory with `-d`
+
+### Restoring from Backup
+
+**Recommended: Using CLI (with volume mount)**
+
+```bash
+# If using volume mount (./backups:/backups in docker-compose.yml)
+docker compose exec server secra backup restore /backups/secra_v0.0.2-alpha_20240315_143022.tar.gz
+```
+
+**Alternative: Copy to container then restore**
+
+```bash
+# Copy backup into container
+docker cp ./backups/secra_v0.0.2-alpha_20240315_143022.tar.gz secra-server:/tmp/
+
+# Restore from container filesystem
+docker compose exec server secra backup restore /tmp/secra_v0.0.2-alpha_20240315_143022.tar.gz
+```
+
+**Local Development (without Docker)**
+
+```bash
+cd backend
+./bin/secra backup restore ./backups/secra_dev_20260301_143022.tar.gz
+```
+
+**Restore Process:**
+1. ✅ Validates backup file exists
+2. ✅ Extracts and migrates UUIDs to v5 format
+3. ✅ Imports data with conflict resolution (UPSERT)
+4. ✅ Restores statistics and relationships
+
+### Important Notes
+
+**UUID v5 Migration:**
+- Old random UUIDs are automatically migrated to deterministic UUID v5
+- IDs are generated using: `uuid5(namespace, unique_key)`
+  - CVE: `uuid5("cve", source_uid)` e.g., `CVE-2024-1234`
+  - Vendor: `uuid5("vendor", name)` e.g., `microsoft`
+  - Product: `uuid5("product", vendor:name)` e.g., `microsoft:windows_10`
+
+**Conflict Handling:**
+- Existing records with same ID are updated (UPSERT)
+- No duplicate entries will be created
+- Safe to restore multiple times
+
+**Post-Restore:**
+- Daily statistics (`daily_cve_counts`) are automatically recalculated
+- Subscriptions remain intact with correct user associations
+
+**Limitations:**
+- `cve_products` relations may need re-sync for 100% accuracy
+- Recommendation: Run NVD import after restore to rebuild perfect relations
+
+### Backup Best Practices
+
+1. **Regular Backups:**
+   ```bash
+   # Setup cron job (daily at 2 AM) - requires volume mount
+   0 2 * * * docker compose -f /path/to/secra/docker-compose.yml exec -T server secra backup create -d /backups
+   ```
+
+2. **Retention Policy:**
+   ```bash
+   # Keep last 7 days, delete older
+   find /path/to/backups -name "secra_*.tar.gz" -mtime +7 -delete
+   ```
+
+3. **Off-site Storage:**
+   ```bash
+   # Sync to remote storage
+   rclone copy /path/to/backups remote:secra-backups
+   ```
+
+4. **Verify Backups:**
+   ```bash
+   # Test restore on staging environment regularly
+   docker compose exec server secra backup restore /backups/$(ls -t /backups/secra_*.tar.gz | head -1)
+   ```
+
+### Troubleshooting
+
+**Backup fails with "Container not running":**
+```bash
+# Ensure containers are up
+docker compose ps
+docker compose up -d
+```
+
+**Restore fails with permission error:**
+```bash
+# Check file permissions
+ls -l ./backups/backup.tar.gz
+chmod 644 ./backups/backup.tar.gz
+```
+
+**Large database backup is slow:**
+- Parquet format is optimized but large datasets take time
+- Consider streaming exports for databases > 1GB
+- Compress with higher levels: `gzip -9`
+
+**Relations not fully restored:**
+```bash
+# Re-run NVD import to rebuild perfect cve_products relations
+docker compose exec server secra import nvd v2 --start 2024-01-01 -f
 ```
 
 ## 🧪 Testing Strategy

@@ -6,8 +6,10 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
       POSTGRES_DB: ${POSTGRES_DB:-secra}
-    ports:
-      - "${DB_PORT_MAP:-5432:5432}"
+    # Port mapping removed - internal services communicate via Docker network
+    # Uncomment for local development/debugging:
+    # ports:
+    #   - "5432:5432"
     volumes:
       - secra_pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -29,13 +31,16 @@ services:
     depends_on:
       db:
         condition: service_healthy
-    ports:
-      - "50051:50051" # gRPC
-      - "8081:8080"   # REST API
+    # Port mapping removed - frontend proxies all requests
+    # Uncomment for local development/debugging:
+    # ports:
+    #   - "50051:50051" # gRPC
+    #   - "8081:8080"   # REST API
     env_file:
       - .env
     environment:
-      - POSTGRES_DSN=postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-secra}?sslmode=disable
+      # PostgreSQL connection is auto-constructed from POSTGRES_* variables
+      - POSTGRES_HOST=db
       - GRPC_PORT=:50051
       - HTTP_PORT=:8080
     healthcheck:
@@ -50,7 +55,7 @@ services:
       dockerfile: frontend/Dockerfile
     container_name: secra-frontend
     ports:
-      - "80:80" # Unified Entry Point
+      - "80:80"  # Unified Entry Point - Only external access point
     environment:
       - NEXT_PUBLIC_API_URL=/api/v1
     depends_on:
