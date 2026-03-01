@@ -60,5 +60,11 @@ The Cyberpunk Dashboard is available at: **http://localhost:8081**
 
 ---
 
+## 🛠 Development Guidelines
+For detailed information on branching, commit messages, and release cycles, please refer to:
+**[Git Workflow & Standards](docs/GIT_WORKFLOW.md)**
+
+---
+
 ## 🛡 License
 Licensed under the **GNU Affero General Public License v3.0 (AGPL-3.0)**. See [LICENSE](LICENSE) for details.
