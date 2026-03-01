@@ -28,27 +28,32 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    expose:
+      - "8080"
     ports:
-      - "8081:8080"   # Host 8081 -> Container 8080 (Matches your log)
-      - "50051:50051" # Host 50051 -> Container 50051
+      - "50051:50051"
     env_file:
       - .env
     environment:
       - POSTGRES_DSN=postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-secra}?sslmode=disable
-      - GRPC_PORT=:50051 # Explicitly use interface-less port for container
-      - HTTP_PORT=:8080  # Match your .env setting detected in logs
-      - JWT_SECRET=${JWT_SECRET}
-      - SMTP_HOST=${SMTP_HOST}
-      - SMTP_PORT=${SMTP_PORT}
-      - SMTP_USER=${SMTP_USER}
-      - SMTP_PASS=${SMTP_PASS}
-      - SMTP_FROM=${SMTP_FROM}
-      - SMTP_ENCRYPTION=${SMTP_ENCRYPTION}
+      - GRPC_PORT=:50051
+      - HTTP_PORT=:8080
     healthcheck:
       test: ["CMD", "secra", "health", "check", "--type", "http"]
       interval: 10s
       timeout: 5s
       retries: 3
+
+  frontend:
+    build:
+      context: ./frontend
+    container_name: secra-frontend
+    ports:
+      - "80:80" # Unified Entry Point
+    environment:
+      - NEXT_PUBLIC_API_URL=/api/v1
+    depends_on:
+      - server
 
 volumes:
   secra_pgdata:
