@@ -3,20 +3,20 @@ services:
     image: postgres:17-alpine
     container_name: secra-db
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: secra
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-secra}
     ports:
-      - "5432:5432"
+      - "${DB_PORT_MAP:-5432:5432}"
     volumes:
       - secra_pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
       interval: 5s
       timeout: 5s
       retries: 5
 
-  grpc:
+  server:
     build:
       context: .
       args:
@@ -24,39 +24,26 @@ services:
         BUILD_DATE: "${BUILD_DATE:-unknown}"
         GIT_COMMIT: "${GIT_COMMIT:-none}"
         BUILT_BY: "${HOSTNAME:-unknown}"
-    container_name: secra-grpc
-    command: ./secra-grpc
+    container_name: secra-server
     depends_on:
       db:
         condition: service_healthy
     ports:
-      - "50051:50051"
-    environment:
-      - POSTGRES_DSN=postgres://postgres:postgres@db:5432/secra?sslmode=disable
-      - GRPC_PORT=:50051
-
-  web:
-    build:
-      context: .
-      args:
-        VERSION: "${APP_VERSION:-dev}"
-        BUILD_DATE: "${BUILD_DATE:-unknown}"
-        GIT_COMMIT: "${GIT_COMMIT:-none}"
-        BUILT_BY: "${HOSTNAME:-unknown}"
-    container_name: secra-web
-    command: ./secra-http
-    depends_on:
-      grpc:
-        condition: service_started
-    ports:
-      - "8081:8081"
+      - "8081:8080"   # Host 8081 -> Container 8080 (Matches your log)
+      - "50051:50051" # Host 50051 -> Container 50051
     env_file:
       - .env
-    volumes:
-      - ./web:/app/web # Enable live template updates
     environment:
-      - POSTGRES_DSN=postgres://postgres:postgres@db:5432/secra?sslmode=disable
-      - GRPC_PORT=:50051
+      - POSTGRES_DSN=postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-secra}?sslmode=disable
+      - GRPC_PORT=:50051 # Explicitly use interface-less port for container
+      - HTTP_PORT=:8080  # Match your .env setting detected in logs
+      - JWT_SECRET=${JWT_SECRET}
+      - SMTP_HOST=${SMTP_HOST}
+      - SMTP_PORT=${SMTP_PORT}
+      - SMTP_USER=${SMTP_USER}
+      - SMTP_PASS=${SMTP_PASS}
+      - SMTP_FROM=${SMTP_FROM}
+      - SMTP_ENCRYPTION=${SMTP_ENCRYPTION}
     healthcheck:
       test: ["CMD", "secra", "health", "check", "--type", "http"]
       interval: 10s
