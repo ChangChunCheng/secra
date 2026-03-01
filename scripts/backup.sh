@@ -1,11 +1,11 @@
 #!/bin/bash
 
 # Secra Backup Script
-# Usage: ./backup.sh <output_directory>
+# Usage: ./scripts/backup.sh <output_directory>
 
 set -e
 
-CONTAINER_NAME="secra-web"
+CONTAINER_NAME="secra-server"
 OUT_DIR=$1
 
 if [ -z "$OUT_DIR" ]; then
@@ -20,7 +20,7 @@ if [ ! "$(docker ps -q -f name=${CONTAINER_NAME})" ]; then
 fi
 
 # Fetch version dynamically using --raw flag
-VERSION=$(docker compose exec web secra version --raw | tr -d '\r')
+VERSION=$(docker compose exec server secra version --raw | tr -d '\r')
 TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
 
 mkdir -p "$OUT_DIR"
@@ -29,10 +29,9 @@ TMP_PATH="/tmp/${FILENAME}"
 FINAL_PATH="${OUT_DIR}/${FILENAME}"
 
 echo "📦 Initializing backup for version ${VERSION}..."
-docker compose exec web secra backup create -o "${TMP_PATH}"
+docker compose exec server secra backup create -o "${TMP_PATH}"
 
 echo "🚚 Copying backup to host: ${FINAL_PATH}"
 docker cp "${CONTAINER_NAME}:${TMP_PATH}" "${FINAL_PATH}"
 
 echo "✅ Backup completed: ${FINAL_PATH}"
-echo "💡 Note: Temporary file in container /tmp will persist until container restart."
